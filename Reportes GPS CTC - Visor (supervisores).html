@@ -742,8 +742,8 @@ function buildNotas(m){
   var wrap=document.getElementById('notas-wrap');
   if(!wrap)return;
   var torreMsg=m.torre?
-    ('&#128225; Este m\u00f3vil reporta a la torre de control: <strong>'+m.torre+'</strong>. Si es algo urgente de ruta o tr\u00e1nsito, avisale primero a la torre. Cualquier otra cosa, dejala ac\u00e1 abajo.'):
-    ('Este m\u00f3vil no tiene torre de control asignada. Cualquier consulta sobre este reporte, dejala ac\u00e1 abajo (para Fabricio o el supervisor).');
+    ('&#128225; Este m\u00f3vil reporta a la Torre de Control: <strong>'+m.torre+'</strong>. Ante una consulta urgente de ruta o tr\u00e1nsito, por favor comun\u00edquese primero con la torre correspondiente. Para cualquier otra consulta sobre este reporte, puede dejarla a continuaci\u00f3n.'):
+    ('Este m\u00f3vil no tiene Torre de Control asignada. Ante cualquier consulta sobre este reporte, por favor dir\u00edjase a Fabricio o al supervisor.');
   wrap.innerHTML='<div class="obs-box">'+
     '<div class="obs-box-hdr"><span class="obs-box-title">&#128221; \u00bfViste algo que haya que anotar?</span></div>'+
     '<div style="font-size:12px;color:var(--tx2);margin-bottom:.6rem;line-height:1.5">'+torreMsg+'</div>'+
