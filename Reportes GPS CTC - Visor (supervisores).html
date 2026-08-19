@@ -218,7 +218,10 @@ tbody tr:last-child td{border-bottom:none}
 <div id="hist">
   <div class="hist-tb">
     <div class="tbl"><div class="tblogo">CTC &middot; GPS</div><div class="tbsep"></div><div class="tbtit">Reportes GPS</div></div>
-    <button class="bo" id="hist-back-btn" onclick="closeHistorial()" style="display:none">&#8592; Volver al reporte</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="theme-sw" id="theme-sw-hist"></div>
+      <button class="bo" id="hist-back-btn" onclick="closeHistorial()" style="display:none">&#8592; Volver al reporte</button>
+    </div>
   </div>
   <div class="hist-main">
     <div class="hist-tit">Buscá un reporte</div>
@@ -257,7 +260,7 @@ var THEME_KEY='ctc_dash_theme';
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
   try{localStorage.setItem(THEME_KEY,t);}catch(e){}
-  ['theme-sw-up','theme-sw-dash'].forEach(function(id){
+  ['theme-sw-up','theme-sw-dash','theme-sw-hist'].forEach(function(id){
     var el=document.getElementById(id);if(!el)return;
     el.innerHTML=['light','dark','sepia'].map(function(k){
       return '<div class="theme-dot '+(k===t?'on':'')+'" data-t="'+k+'" title="'+({light:'Claro',dark:'Oscuro',sepia:'Sepia'})[k]+'" onclick="applyTheme(\''+k+'\')"></div>';
@@ -677,6 +680,7 @@ function renderPanel(m){
     '<div class="sl">Alertas y eventos</div>'+
     '<div class="als" id="alc"></div>'+
     '<div id="obs-wrap"></div>'+
+    '<div id="notas-wrap"></div>'+
     mapH+dbts+
     '<div class="cc"><div class="ct">Paradas por d\u00eda</div>'+
       '<div class="lg"><div class="li"><div class="lsq" style="background:'+m.color+'55;border:1px solid '+m.color+'"></div>Total</div>'+
@@ -689,7 +693,7 @@ function renderPanel(m){
         (m.hC?'<th>Cliente</th>':'')+(m.hT?'<th>Trabajo</th>':'')+'<th>T. Inst/Reclamo</th><th>Obs.</th>'+
       '</tr></thead><tbody id="tb"></tbody></table></div></div>';
 
-  updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);
+  updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);
   if(hC)rMapa(m,'t');
   // Bar chart
   var barEl=document.getElementById('cbar');
@@ -731,6 +735,50 @@ function updTrabCounter(m){
   if(t.total===0){el.innerHTML='';return;}
   el.innerHTML='<span style="display:inline-block;background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--tx)">'+
     m.label+' &mdash; Trabajos realizados: <span style="color:'+(t.ok===t.total?'var(--ok)':'var(--wn)')+'">'+t.ok+' de '+t.total+'</span></span>';
+}
+
+/* === NOTAS PARA EL SUPERVISOR (WhatsApp / mail / copiar — sin destinatario fijo) === */
+function buildNotas(m){
+  var wrap=document.getElementById('notas-wrap');
+  if(!wrap)return;
+  var torreMsg=m.torre?
+    ('&#128225; Este m\u00f3vil reporta a la torre de control: <strong>'+m.torre+'</strong>. Si es algo urgente de ruta o tr\u00e1nsito, avisale primero a la torre. Cualquier otra cosa, dejala ac\u00e1 abajo.'):
+    ('Este m\u00f3vil no tiene torre de control asignada. Cualquier consulta sobre este reporte, dejala ac\u00e1 abajo (para Fabricio o el supervisor).');
+  wrap.innerHTML='<div class="obs-box">'+
+    '<div class="obs-box-hdr"><span class="obs-box-title">&#128221; \u00bfViste algo que haya que anotar?</span></div>'+
+    '<div style="font-size:12px;color:var(--tx2);margin-bottom:.6rem;line-height:1.5">'+torreMsg+'</div>'+
+    '<textarea class="obs-ta" id="nota-ta" placeholder="Escrib\u00ed ac\u00e1 lo que quieras dejar anotado sobre este m\u00f3vil..."></textarea>'+
+    '<div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">'+
+      '<button class="bo" onclick="enviarNotaWhatsapp()">&#128172; WhatsApp</button>'+
+      '<button class="bo" onclick="enviarNotaMail()">&#9993;&#65039; Mail</button>'+
+      '<button class="bo" onclick="copiarNota()">&#128203; Copiar</button>'+
+    '</div>'+
+  '</div>';
+}
+function notaTexto(){
+  var m=DATA[aM];
+  var ta=document.getElementById('nota-ta');
+  var txt=ta?ta.value.trim():'';
+  if(!txt){alert('Escrib\u00ed algo antes de enviar.');return null;}
+  var cab='Reporte GPS \u2014 '+m.label+' ('+(m.desde||'?')+' a '+(m.hasta||'?')+')'+(m.torre?' \u2014 Torre: '+m.torre:'');
+  return cab+'\n\n'+txt;
+}
+function enviarNotaWhatsapp(){
+  var t=notaTexto();if(!t)return;
+  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
+}
+function enviarNotaMail(){
+  var t=notaTexto();if(!t)return;
+  var m=DATA[aM];
+  window.location.href='mailto:?subject='+encodeURIComponent('Nota reporte GPS \u2014 '+m.label)+'&body='+encodeURIComponent(t);
+}
+function copiarNota(){
+  var t=notaTexto();if(!t)return;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){toast('\u2713 Nota copiada \u2014 peg\u00e1la donde quieras enviarla');}).catch(function(){alert('No se pudo copiar. Copiala manualmente:\n\n'+t);});
+  }else{
+    alert('Copiala manualmente:\n\n'+t);
+  }
 }
 
 /* === CUADRO DE OBSERVACIONES (solo lectura en el visor) === */
@@ -813,7 +861,7 @@ function updKpis(m){
 function chDay(d,btn){
   aD=d;
   document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
-  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);
+  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);
   if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
 }
 
