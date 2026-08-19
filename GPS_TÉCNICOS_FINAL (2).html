@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard GPS — CTC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.css"/>
+<script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
+<style>
+.leaflet-bar a{color:#1a1917!important}
+.geosearch form{border-radius:6px!important}
+.geosearch input{font-family:system-ui,sans-serif!important;font-size:13px!important}
+:root{--bg:#f4f3ef;--sf:#fff;--sf2:#f0ede8;--bd:#e2ddd6;--tx:#1a1917;--tx2:#6b6760;--tx3:#9c9890;--ac:#2563eb;--dn:#dc2626;--wn:#d97706;--ok:#16a34a;--dm:#9333ea;--gs:#ea580c;--r:10px;--rs:6px;--fn:'DM Sans',system-ui,sans-serif;--fm:'DM Mono',monospace}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:var(--fn);background:var(--bg);color:var(--tx);min-height:100vh}
+#up{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+.ulogo{font-family:var(--fm);font-size:11px;font-weight:500;letter-spacing:.12em;color:var(--tx3);text-transform:uppercase;margin-bottom:2.5rem}
+.ucard{background:var(--sf);border:1.5px dashed var(--bd);border-radius:16px;padding:3rem 3.5rem;text-align:center;max-width:480px;width:100%;transition:border-color .2s,background .2s}
+.ucard:hover,.ucard.dov{border-color:var(--ac);background:#eff6ff}
+.uicon{width:52px;height:52px;background:#eff6ff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:24px}
+.utit{font-size:18px;font-weight:600;margin-bottom:.5rem}.usub{font-size:14px;color:var(--tx2);margin-bottom:1.5rem;line-height:1.5}
+.ubtn{background:var(--ac);color:#fff;font-family:var(--fn);font-size:14px;font-weight:500;padding:9px 22px;border-radius:var(--rs);border:none;cursor:pointer}
+#fi{display:none}.uhint{margin-top:1.5rem;font-size:12px;color:var(--tx3)}
+.fnote{margin-top:2rem;background:var(--sf2);border-radius:var(--rs);padding:.75rem 1rem;font-size:12px;color:var(--tx2);text-align:left;line-height:1.7;max-width:480px;width:100%}
+.fnote strong{color:var(--tx)}
+#dash{display:none}
+.tbar{background:var(--sf);border-bottom:1px solid var(--bd);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:200}
+.tbl{display:flex;align-items:center;gap:12px}.tblogo{font-family:var(--fm);font-size:12px;color:var(--tx3);letter-spacing:.08em}
+.tbsep{width:1px;height:20px;background:var(--bd)}.tbtit{font-size:14px;font-weight:600}.tbmet{font-size:12px;color:var(--tx2)}
+.tbr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bo{font-family:var(--fn);font-size:12px;font-weight:500;padding:6px 14px;border-radius:var(--rs);border:1px solid var(--bd);background:transparent;color:var(--tx2);cursor:pointer;white-space:nowrap}
+.bo:hover{border-color:var(--tx3);color:var(--tx)}
+.bg{font-family:var(--fn);font-size:12px;font-weight:600;padding:6px 16px;border-radius:var(--rs);border:none;background:var(--ok);color:#fff;cursor:pointer;white-space:nowrap}
+.main{max-width:1150px;margin:0 auto;padding:1.5rem}
+.sl{font-family:var(--fm);font-size:10px;font-weight:500;letter-spacing:.1em;color:var(--tx3);text-transform:uppercase;margin-bottom:.75rem}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:1.75rem}
+.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:1rem 1.1rem}
+.kpi-l{font-size:11px;color:var(--tx2);margin-bottom:4px}.kpi-v{font-size:26px;font-weight:600;line-height:1}
+.kpi-v.dn{color:var(--dn)}.kpi-v.wn{color:var(--wn)}.kpi-v.ok{color:var(--ok)}.kpi-v.dm{color:var(--dm)}.kpi-v.gs{color:var(--gs)}
+.tabs{display:flex;gap:4px;background:var(--sf2);border-radius:var(--r);padding:4px;margin-bottom:1.5rem;flex-wrap:wrap}
+.tab{flex:1;min-width:100px;padding:8px 10px;border-radius:7px;border:none;background:transparent;font-family:var(--fn);font-size:13px;font-weight:400;color:var(--tx2);cursor:pointer;text-align:center;transition:all .15s}
+.tab.on{background:var(--sf);color:var(--tx);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.mn{font-size:18px;font-weight:600;margin-bottom:.5rem}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem}
+.chip{display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:var(--rs);background:var(--sf2);border:1px solid var(--bd);font-size:11px;color:var(--tx2);line-height:1.4}
+.cdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}.cdom{font-size:10px;color:var(--tx3)}
+.kr{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-bottom:1.25rem}
+.ks{background:var(--sf2);border-radius:var(--rs);padding:.75rem .9rem}
+.ks .kpi-l{font-size:11px;color:var(--tx3);margin-bottom:3px}.ks .kpi-v{font-size:20px;font-weight:600}
+.df{display:flex;align-items:center;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap}
+.dfl{font-size:12px;color:var(--tx2);white-space:nowrap;font-weight:500}
+.db{font-size:12px;padding:5px 12px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--tx2);cursor:pointer;transition:all .15s;white-space:nowrap}
+.db.on{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:600}
+.db:hover:not(.on){background:var(--sf2)}
+.als{margin-bottom:1.5rem}
+.ai{display:flex;gap:10px;padding:10px 12px;border-radius:var(--rs);margin-bottom:6px;border-left:3px solid}
+.ai.dn{background:#fef2f2;border-color:var(--dn)}.ai.wn{background:#fffbeb;border-color:var(--wn)}
+.ai.dm{background:#fdf4ff;border-color:var(--dm)}.ai.gs{background:#fff7ed;border-color:var(--gs)}
+.ai.spd{background:#fff1f2;border-color:#e11d48}
+.ab{font-size:13px;font-weight:500}.am{font-size:11px;color:var(--tx2);margin-top:2px}
+.na{font-size:13px;color:var(--tx3);padding:.5rem 0;display:flex;align-items:center;gap:8px}
+.na::before{content:'\2713';display:inline-flex;width:18px;height:18px;background:#dcfce7;border-radius:50%;align-items:center;justify-content:center;font-size:10px;color:var(--ok);flex-shrink:0}
+.mc{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:1.25rem}
+.mch{padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:8px}
+.mct{font-size:13px;font-weight:600}.mf{display:flex;gap:6px;flex-wrap:wrap}
+.mfb{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--tx2);cursor:pointer}
+.mfb.on{background:var(--ac);border-color:var(--ac);color:#fff}
+#mmap{height:360px;width:100%}
+.ml{padding:.55rem 1rem;display:flex;gap:14px;flex-wrap:wrap;border-top:1px solid var(--bd);background:var(--sf2)}
+.mli{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2)}
+.mld{width:10px;height:10px;border-radius:50%;border:2px solid rgba(0,0,0,.15)}
+.cc{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:1rem 1.1rem;margin-bottom:1.25rem}
+.ct{font-size:12px;font-weight:500;color:var(--tx2);margin-bottom:.75rem}
+.cw{position:relative;width:100%;height:160px}
+.lg{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2)}
+.lsq{width:9px;height:9px;border-radius:2px}
+.clc{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:1rem 1.1rem;margin-bottom:1.25rem}
+.clh{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.cls{overflow-x:auto;padding-bottom:6px}
+.cls::-webkit-scrollbar{height:4px}.cls::-webkit-scrollbar-track{background:var(--sf2);border-radius:2px}.cls::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+.cli{display:flex;align-items:flex-end;gap:8px;min-width:max-content;padding:24px 4px 4px}
+.cbw{display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+.cb{border-radius:4px 4px 0 0;width:42px;cursor:default}.cb:hover{opacity:.75}
+.cbd{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--tx2);white-space:nowrap;font-family:var(--fm);font-weight:500}
+.cbl{font-size:10px;color:var(--tx3);font-family:var(--fm);white-space:nowrap;text-align:center;max-width:42px;overflow:hidden;text-overflow:ellipsis}
+.ts{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:1.5rem}
+.th{padding:.85rem 1rem;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.tt{font-size:13px;font-weight:600}.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{text-align:left;padding:8px 10px;color:var(--tx3);font-weight:500;border-bottom:1px solid var(--bd);white-space:nowrap;background:var(--sf2);font-size:11px}
+tbody tr:hover{background:var(--sf2)}
+tbody tr.rp td{color:var(--tx3)}
+tbody tr.rd{background:#fdf4ff}tbody tr.rg{background:#fff7ed}
+tbody tr.rspd{background:#fff1f2}
+tbody td{padding:8px 10px;border-bottom:1px solid var(--bd);color:var(--tx);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+.bd{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap}
+.bdn{background:#fef2f2;color:var(--dn)}.bdw{background:#fffbeb;color:var(--wn)}
+.bdo{background:#f0fdf4;color:var(--ok)}.bdn2{background:var(--sf2);color:var(--tx3)}
+.bdm{background:#fdf4ff;color:var(--dm)}.bdg{background:#fff7ed;color:var(--gs)}.bdgm{background:#fee2e2;color:var(--dn)}
+#ld{position:fixed;inset:0;background:rgba(244,243,239,.93);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
+.sp{width:28px;height:28px;border:2.5px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}.lt{font-size:13px;color:var(--tx2)}
+#toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--tx);color:#fff;padding:.7rem 1.1rem;border-radius:var(--rs);font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
+#toast.on{opacity:1}
+
+.obs-box{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:1rem 1.1rem;margin-bottom:1.25rem}
+.obs-box-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+.obs-box-title{font-size:12px;font-weight:600;color:var(--tx2)}
+.obs-ta{width:100%;min-height:70px;border:1px solid var(--bd);border-radius:var(--rs);padding:8px 10px;font-family:var(--fn);font-size:13px;color:var(--tx);background:var(--sf2);resize:vertical;outline:none;transition:border-color .15s}
+.obs-ta:focus{border-color:var(--ac);background:var(--sf)}
+.obs-saved{font-size:11px;color:var(--tx3);margin-top:4px;display:none}
+</style>
+</head>
+<body>
+
+<div id="ld"><div class="sp"></div><div class="lt" id="lt">Procesando...</div></div>
+<div id="toast"></div>
+<div id="up">
+  <div class="ulogo">CTC &middot; GPS DASHBOARD</div>
+  <div class="ucard" id="dz">
+    <div class="uicon">&#128202;</div>
+    <div class="utit">Cargar reporte GPS</div>
+    <div class="usub">Arrastr&#225; el Excel procesado aqu&#237;, o hac&#233; clic para seleccionarlo</div>
+    <button class="ubtn" onclick="document.getElementById('fi').click()">Seleccionar archivo</button>
+    <input type="file" id="fi" accept=".xlsx,.xls,.ctcdata" onchange="handleFile(this.files[0])">
+    <div class="uhint">Archivo Excel del reporte diario</div>
+    <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #e2ddd6">
+      <div style="font-size:12px;color:#9c9890;margin-bottom:.75rem">o cargá una sesión guardada</div>
+      <label style="display:inline-block;background:transparent;border:1px solid #e2ddd6;color:#6b6760;font-family:var(--fn);font-size:13px;font-weight:500;padding:7px 18px;border-radius:var(--rs);cursor:pointer">
+        &#128190; Abrir sesión .ctcdata
+        <input type="file" accept=".ctcdata" style="display:none" onchange="cargarSesion(this.files[0])">
+      </label>
+    </div>
+  </div>
+  
+</div>
+<div id="dash">
+  <div class="tbar">
+    <div class="tbl">
+      <div class="tblogo">CTC &middot; GPS</div>
+      <div class="tbsep"></div>
+      <div><div class="tbtit" id="rtit">Seguimiento</div><div class="tbmet" id="rmet"></div></div>
+    </div>
+    <div class="tbr">
+      <button class="bg" onclick="guardarSesion()">&#128190; Guardar sesión</button>
+      <button class="bo" onclick="window.print()">Imprimir</button>
+      <button class="bo" onclick="resetDash()">Cargar otro</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="sl">Resumen general</div>
+    <div class="sg" id="sg"></div>
+    <div class="sl">M&#243;viles</div>
+    <div class="tabs" id="tabs"></div>
+    <div id="panel"></div>
+  </div>
+</div>
+
+<script>
+const TECNICOS_DB=[{"apellido": "CERNA", "nombre": "RAMON ALBERTO", "apellido_nombre": "CERNA RAMON ALBERTO", "empresa": "CTC", "direccion": "VELEZ SARFIELD 2760", "localidad": "SAN RAFAEL", "busqueda": "VELEZ SARFIELD 2760, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6494196, "lon": -68.3439996}, {"apellido": "ALANES", "nombre": "RAMON FRANCISCO", "apellido_nombre": "ALANES RAMON FRANCISCO", "empresa": "CTC", "direccion": "VENEZUELA 1251", "localidad": "SAN RAFAEL", "busqueda": "VENEZUELA 1251, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6335765, "lon": -68.3175031}, {"apellido": "SUTTER", "nombre": "ARNOLDO ALBERTO", "apellido_nombre": "SUTTER ARNOLDO ALBERTO", "empresa": "CTC", "direccion": "SAAVEDRA 1137", "localidad": "SAN RAFAEL", "busqueda": "SAAVEDRA 1137, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6018039, "lon": -68.331714}, {"apellido": "GONZALEZ", "nombre": "ROQUE CRISTIAN", "apellido_nombre": "GONZALEZ ROQUE CRISTIAN", "empresa": "CTC", "direccion": "CALLAO 928", "localidad": "SAN RAFAEL", "busqueda": "CALLAO 928, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6151699, "lon": -68.2999348}, {"apellido": "GIMENEZ", "nombre": "FERNANDO EMILIO", "apellido_nombre": "GIMENEZ FERNANDO EMILIO", "empresa": "CTC", "direccion": "LOS PLATANOS 3095", "localidad": "SAN RAFAEL", "busqueda": "LOS PLATANOS 3095, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6363223, "lon": -68.3774953}, {"apellido": "PEREZ", "nombre": "CLAUDIO DAVID", "apellido_nombre": "PEREZ CLAUDIO DAVID", "empresa": "CTC", "direccion": "B°EL CAROLINO", "localidad": "EL TOLEDANO", "busqueda": "B°EL CAROLINO, EL TOLEDANO, Mendoza, Argentina", "lat": -34.5572667, "lon": -68.35613}, {"apellido": "CALZADA", "nombre": "ADRIAN ALEJANDRO", "apellido_nombre": "CALZADA ADRIAN ALEJANDRO", "empresa": "CTC", "direccion": "ALEM 167", "localidad": "SAN RAFAEL", "busqueda": "ALEM 167, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6151901, "lon": -68.3269714}, {"apellido": "ROLDAN", "nombre": "ROBERTO MATIAS", "apellido_nombre": "ROLDAN ROBERTO MATIAS", "empresa": "CTC", "direccion": "MAHIA 3186", "localidad": "EL CERRITO", "busqueda": "MAHIA 3186, EL CERRITO, Mendoza, Argentina", "lat": -34.5874355, "lon": -68.2755764}, {"apellido": "VIDELA", "nombre": "JORGE HERNAN", "apellido_nombre": "VIDELA JORGE HERNAN", "empresa": "CTC", "direccion": "ISLA DECEPCIÓN 1738", "localidad": "SAN RAFAEL", "busqueda": "ISLA DECEPCIÓN 1738, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6460367, "lon": -68.3195973}, {"apellido": "LOMORO", "nombre": "LUIS MIGUEL", "apellido_nombre": "LOMORO LUIS MIGUEL", "empresa": "CTC", "direccion": "FORMOSA 183", "localidad": "SAN RAFAEL", "busqueda": "FORMOSA 183, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6274202, "lon": -68.3040183}, {"apellido": "LLANTEN", "nombre": "MARCELO", "apellido_nombre": "LLANTEN MARCELO", "empresa": "CTC", "direccion": "CENTRO AMERICA 725", "localidad": "SAN RAFAEL", "busqueda": "CENTRO AMERICA 725, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6310797, "lon": -68.3099156}, {"apellido": "PEREZ", "nombre": "ALEJANDRO SEBASTIAN", "apellido_nombre": "PEREZ ALEJANDRO SEBASTIAN", "empresa": "CTC", "direccion": "JUAN PI 1324", "localidad": "SAN RAFAEL", "busqueda": "JUAN PI 1324, SAN RAFAEL, Mendoza, Argentina", "lat": -34.5948524, "lon": -68.344272}, {"apellido": "SCANTARBURLO", "nombre": "LUIS ANGEL", "apellido_nombre": "SCANTARBURLO LUIS ANGEL", "empresa": "CTC", "direccion": "17 DE AGOSTO 277", "localidad": "SAN RAFAEL", "busqueda": "17 DE AGOSTO 277, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6344191, "lon": -68.3612784}, {"apellido": "GUILLEN", "nombre": "RAUL EMANUEL", "apellido_nombre": "GUILLEN RAUL EMANUEL", "empresa": "CTC", "direccion": "LAS AMERICAS 338", "localidad": "SAN RAFAEL", "busqueda": "LAS AMERICAS 338, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6425192, "lon": -68.3389073}, {"apellido": "DAGATA", "nombre": "DAVID", "apellido_nombre": "DAGATA DAVID", "empresa": "CTC", "direccion": "9 DE JULIO 470", "localidad": "SAN RAFAEL", "busqueda": "9 DE JULIO 470, SAN RAFAEL, Mendoza, Argentina", "lat": -34.619038, "lon": -68.3390245}, {"apellido": "CRESPILLO", "nombre": "DANIEL EXEQUIEL", "apellido_nombre": "CRESPILLO DANIEL EXEQUIEL", "empresa": "CTC", "direccion": "SAN LUCAS APOSTOL 935", "localidad": "SAN RAFAEL", "busqueda": "SAN LUCAS APOSTOL 935, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6156803, "lon": -68.2979597}, {"apellido": "BOTTERO", "nombre": "LUCIANO NICOLAS", "apellido_nombre": "BOTTERO LUCIANO NICOLAS", "empresa": "CTC", "direccion": "ISLAS ORCADAS 243", "localidad": "SAN RAFAEL", "busqueda": "ISLAS ORCADAS 243, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6346969, "lon": -68.3341137}, {"apellido": "MUNOZ", "nombre": "JUAN EMMANUEL", "apellido_nombre": "MUNOZ JUAN EMMANUEL", "empresa": "CTC", "direccion": "AMAPOLA Y CJON LOPEZ 54", "localidad": "CUADRO BENEGAS", "busqueda": "AMAPOLA Y CJON LOPEZ 54, CUADRO BENEGAS, Mendoza, Argentina", "lat": -34.6415974, "lon": -68.3878311}, {"apellido": "PEREGRIN", "nombre": "FACUNDO JOSE", "apellido_nombre": "PEREGRIN FACUNDO JOSE", "empresa": "CTC", "direccion": "LA VENDIMIA MZNA H LOTE F", "localidad": "SAN RAFAEL", "busqueda": "LA VENDIMIA MZNA H LOTE F, SAN RAFAEL, Mendoza, Argentina", "lat": -34.60465, "lon": -68.28328}, {"apellido": "SUAREZ", "nombre": "LUCIANO DARIO", "apellido_nombre": "SUAREZ LUCIANO DARIO", "empresa": "CTC", "direccion": "JUAN TERRES 1385", "localidad": "SAN RAFAEL", "busqueda": "JUAN TERRES 1385, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6213171, "lon": -68.3575521}, {"apellido": "CASATTI", "nombre": "JOSE ALBERTO", "apellido_nombre": "CASATTI JOSE ALBERTO", "empresa": "CTC", "direccion": "SAN LUIS 535", "localidad": "VILLA ATUEL", "busqueda": "SAN LUIS 535, VILLA ATUEL, Mendoza, Argentina", "lat": -35.0044779, "lon": -67.649368}, {"apellido": "COPPARI", "nombre": "MARCO ANTONIO", "apellido_nombre": "COPPARI MARCO ANTONIO", "empresa": "CTC", "direccion": "CABILDO 1221", "localidad": "SAN RAFAEL", "busqueda": "CABILDO 1221, SAN RAFAEL, Mendoza, Argentina", "lat": -34.620575, "lon": -68.3531617}, {"apellido": "NEIRA", "nombre": "FRANCISCO DANIEL", "apellido_nombre": "NEIRA FRANCISCO DANIEL", "empresa": "CTC", "direccion": "BALCARCE 212", "localidad": "SAN RAFAEL", "busqueda": "BALCARCE 212, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6248727, "lon": -68.3128273}, {"apellido": "TESTA", "nombre": "JOSUE ALEJANDRO", "apellido_nombre": "TESTA JOSUE ALEJANDRO", "empresa": "CTC", "direccion": "CORONEL OLASCOAGA 1653", "localidad": "SAN RAFAEL", "busqueda": "CORONEL OLASCOAGA 1653, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6233072, "lon": -68.3049226}, {"apellido": "ARZA", "nombre": "BRIAN ALBANO", "apellido_nombre": "ARZA BRIAN ALBANO", "empresa": "CTC", "direccion": "NAVAZZO", "localidad": "CAPITAN MONTOYA", "busqueda": "NAVAZZO, CAPITAN MONTOYA, Mendoza, Argentina", "lat": -34.5606519, "lon": -68.3613152}, {"apellido": "SCANTAMBURLO", "nombre": "DIEGO DAVID", "apellido_nombre": "SCANTAMBURLO DIEGO DAVID", "empresa": "CTC", "direccion": "PASAJE ISRAEL 256", "localidad": "SAN RAFAEL", "busqueda": "PASAJE ISRAEL 256, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6285171, "lon": -68.3040782}, {"apellido": "RIVERA", "nombre": "LUIS ALEJANDRO", "apellido_nombre": "RIVERA LUIS ALEJANDRO", "empresa": "CTC", "direccion": "LOS FILTROS 2000", "localidad": "SAN RAFAEL", "busqueda": "LOS FILTROS 2000, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6381418, "lon": -68.3715579}, {"apellido": "VERA", "nombre": "ANGEL JESUS", "apellido_nombre": "VERA ANGEL JESUS", "empresa": "CTC", "direccion": "Ejercito de los Andes 200", "localidad": "SAN RAFAEL", "busqueda": "Ejercito de los Andes 200, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6663568, "lon": -68.3587235}, {"apellido": "GONZALEZ", "nombre": "CARLOS NICOLAS", "apellido_nombre": "GONZALEZ CARLOS NICOLAS", "empresa": "CTC", "direccion": "RUFINO ORTEGA 1", "localidad": "CDO NACIONAL", "busqueda": "RUFINO ORTEGA 1, CDO NACIONAL, Mendoza, Argentina", "lat": -34.6189528, "lon": -68.2803718}, {"apellido": "ARABIA", "nombre": "ELIAS YAMIL", "apellido_nombre": "ARABIA ELIAS YAMIL", "empresa": "CTC", "direccion": "CORDOBA 2220", "localidad": "SAN RAFAEL", "busqueda": "CORDOBA 2220, SAN RAFAEL, Mendoza, Argentina", "lat": -34.5947139, "lon": -68.3150288}, {"apellido": "PELLONI", "nombre": "GABRIEL NORBERTO", "apellido_nombre": "PELLONI GABRIEL NORBERTO", "empresa": "CTC", "direccion": "25 DE MAYO 1209", "localidad": "CUADRO BENEGAS", "busqueda": "25 DE MAYO 1209, CUADRO BENEGAS, Mendoza, Argentina", "lat": -34.5909033, "lon": -68.3236317}, {"apellido": "BOGGIA", "nombre": "CARLOS EMANUEL", "apellido_nombre": "BOGGIA CARLOS EMANUEL", "empresa": "CTC", "direccion": "JUJUY 544", "localidad": "SAN RAFAEL", "busqueda": "JUJUY 544, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6279408, "lon": -68.3435195}, {"apellido": "CERDA", "nombre": "HECTOR MAURICIO", "apellido_nombre": "CERDA HECTOR MAURICIO", "empresa": "CTC", "direccion": "PUERTO ARGENTINO 119", "localidad": "SAN RAFAEL", "busqueda": "PUERTO ARGENTINO 119, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6376858, "lon": -68.3386605}, {"apellido": "ARABIA", "nombre": "LUCAS ABEL", "apellido_nombre": "ARABIA LUCAS ABEL", "empresa": "CTC", "direccion": "DR. HERMAN 1862", "localidad": "SAN RAFAEL", "busqueda": "DR. HERMAN 1862, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6311548, "lon": -68.3510559}, {"apellido": "CASATTI", "nombre": "ANGEL DARIO", "apellido_nombre": "CASATTI ANGEL DARIO", "empresa": "CTC", "direccion": "BALBINO ARIZU 905", "localidad": "VILLA ATUEL", "busqueda": "BALBINO ARIZU 905, VILLA ATUEL, Mendoza, Argentina", "lat": -34.8245743, "lon": -67.9236664}, {"apellido": "MUÑOZ", "nombre": "FABIO EMANUEL", "apellido_nombre": "MUÑOZ FABIO EMANUEL", "empresa": "CTC", "direccion": "RICARDO ROJAS 1146", "localidad": "SAN RAFAEL", "busqueda": "RICARDO ROJAS 1146, SAN RAFAEL, Mendoza, Argentina", "lat": -34.5924942, "lon": -68.3352231}, {"apellido": "GARCIA", "nombre": "FRANCISCO ARIEL O.", "apellido_nombre": "GARCIA FRANCISCO ARIEL O.", "empresa": "CTC", "direccion": "SAAVEDRA 1386", "localidad": "SAN RAFAEL", "busqueda": "SAAVEDRA 1386, SAN RAFAEL, Mendoza, Argentina", "lat": -34.5998455, "lon": -68.3304209}, {"apellido": "FRANCO", "nombre": "DENIS ARIEL", "apellido_nombre": "FRANCO DENIS ARIEL", "empresa": "CTC", "direccion": "CASNATTI 1741", "localidad": "SAN RAFAEL", "busqueda": "CASNATTI 1741, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6196588, "lon": -68.3657144}, {"apellido": "BARCHOVSKI", "nombre": "JUAN RICARDO", "apellido_nombre": "BARCHOVSKI JUAN RICARDO", "empresa": "CTC", "direccion": "EL FORTIN 1107", "localidad": "SAN RAFAEL", "busqueda": "EL FORTIN 1107, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6479351, "lon": -68.2945788}, {"apellido": "HIDALGO", "nombre": "NICOLAS MAXIMILIANO", "apellido_nombre": "HIDALGO NICOLAS MAXIMILIANO", "empresa": "CTC", "direccion": "CUBILLOS 620", "localidad": "SAN RAFAEL", "busqueda": "CUBILLOS 620, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6622095, "lon": -68.3765162}, {"apellido": "ROSALES", "nombre": "JONATHAN MANUEL", "apellido_nombre": "ROSALES JONATHAN MANUEL", "empresa": "CTC", "direccion": "LOS FILTROS 5064", "localidad": "SAN RAFAEL", "busqueda": "LOS FILTROS 5064, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6145639, "lon": -68.4204441}, {"apellido": "GATTAS", "nombre": "AMAL KARIM", "apellido_nombre": "GATTAS AMAL KARIM", "empresa": "CTC", "direccion": "MATIENZO 656", "localidad": "SAN RAFAEL", "busqueda": "MATIENZO 656, SAN RAFAEL, Mendoza, Argentina", "lat": -34.5981576, "lon": -68.3305547}, {"apellido": "MEDINA", "nombre": "CESAR IVAN", "apellido_nombre": "MEDINA CESAR IVAN", "empresa": "CTC", "direccion": "PEDRO ESPASANDIN 412", "localidad": "SAN RAFAEL", "busqueda": "PEDRO ESPASANDIN 412, SAN RAFAEL, Mendoza, Argentina", "lat": -34.590935, "lon": -68.322955}, {"apellido": "VERA", "nombre": "MATIAS", "apellido_nombre": "VERA MATIAS", "empresa": "CTC", "direccion": "San Juan Bosco 877", "localidad": "SAN RAFAEL", "busqueda": "San Juan Bosco 877, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6213002, "lon": -68.3450128}, {"apellido": "LOPEZ", "nombre": "MAXIMILIANOO NICOLAS", "apellido_nombre": "LOPEZ MAXIMILIANOO NICOLAS", "empresa": "CTC", "direccion": "LAS GLICINAS 4285", "localidad": "SAN RAFAEL", "busqueda": "LAS GLICINAS 4285, SAN RAFAEL, Mendoza, Argentina", "lat": -34.635979, "lon": -68.3790848}, {"apellido": "PRIETO", "nombre": "CLAUDIO ALEJANDRO", "apellido_nombre": "PRIETO CLAUDIO ALEJANDRO", "empresa": "CTC", "direccion": "BELGRANO 1180", "localidad": "SAN RAFAEL", "busqueda": "BELGRANO 1180, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6081832, "lon": -68.3429043}, {"apellido": "ALLAIME", "nombre": "JORGE CEFERINO", "apellido_nombre": "ALLAIME JORGE CEFERINO", "empresa": "CTC", "direccion": "5TA MARIA DE ORO 448", "localidad": "CUADRO NACIONAL", "busqueda": "5TA MARIA DE ORO 448, CUADRO NACIONAL, Mendoza, Argentina", "lat": -34.6114781, "lon": -68.2731472}, {"apellido": "CHIAPA", "nombre": "ALEJANDRO HECTOR", "apellido_nombre": "CHIAPA ALEJANDRO HECTOR", "empresa": "CTC", "direccion": "RIO BAMBA 1256", "localidad": "SAN RAFAEL", "busqueda": "RIO BAMBA 1256, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6116693, "lon": -68.3000946}, {"apellido": "PELLONI", "nombre": "ITALO EMIR", "apellido_nombre": "PELLONI ITALO EMIR", "empresa": "CTC", "direccion": "25 DE MAYO 1209", "localidad": "CUADRO BENEGAS", "busqueda": "25 DE MAYO 1209, CUADRO BENEGAS, Mendoza, Argentina", "lat": -34.6103788, "lon": -68.4638614}, {"apellido": "FAVARI", "nombre": "JORGE DANIEL", "apellido_nombre": "FAVARI JORGE DANIEL", "empresa": "CTC", "direccion": "BERTANI SUR 2895", "localidad": "LAS PAREDES", "busqueda": "BERTANI SUR 2895, LAS PAREDES, Mendoza, Argentina", "lat": -34.6138006, "lon": -68.4119826}, {"apellido": "OSORIO", "nombre": "ENRIQUE ABEL", "apellido_nombre": "OSORIO ENRIQUE ABEL", "empresa": "OFICINA PYME", "direccion": "CALLAO 3260", "localidad": "EL CERRITO", "busqueda": "CALLAO 3260, EL CERRITO, Mendoza, Argentina", "lat": -34.5964412, "lon": -68.2904216}, {"apellido": "ESCOBAR", "nombre": "LUCIANO RENE JESUS", "apellido_nombre": "ESCOBAR LUCIANO RENE JESUS", "empresa": "OFICINA PYME", "direccion": "LOS SAUCES 12000", "localidad": "SAN RAFAEL", "busqueda": "LOS SAUCES 12000, SAN RAFAEL, Mendoza, Argentina", "lat": -34.5950183, "lon": -68.4519}, {"apellido": "FIOCHETTI", "nombre": "DENIS AGUSTIN", "apellido_nombre": "FIOCHETTI DENIS AGUSTIN", "empresa": "OFICINA PYME", "direccion": "ADOLFO CALLE 3546", "localidad": "SAN RAFAEL", "busqueda": "ADOLFO CALLE 3546, SAN RAFAEL, Mendoza, Argentina", "lat": -34.5820185, "lon": -68.3137008}, {"apellido": "LOPEZ", "nombre": "OSVALDO RAMON", "apellido_nombre": "LOPEZ OSVALDO RAMON", "empresa": "OFICINA PYME", "direccion": "BALCARCE 3510", "localidad": "SAN RAFAEL", "busqueda": "BALCARCE 3510, SAN RAFAEL, Mendoza, Argentina", "lat": -34.653217, "lon": -68.325184}, {"apellido": "MIRANDA", "nombre": "JONATHAN DAMIAN", "apellido_nombre": "MIRANDA JONATHAN DAMIAN", "empresa": "OFICINA PYME", "direccion": "ARANCIBIA- MANZANA D 2", "localidad": "RAMA CAIDA", "busqueda": "ARANCIBIA- MANZANA D 2, RAMA CAIDA, Mendoza, Argentina", "lat": -34.703869, "lon": -68.373472}, {"apellido": "RUIZ", "nombre": "MATIAS ALEJANDRO", "apellido_nombre": "RUIZ MATIAS ALEJANDRO", "empresa": "OFICINA PYME", "direccion": "LOS SAUCES 130", "localidad": "SAN RAFAEL", "busqueda": "LOS SAUCES 130, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6334826, "lon": -68.3413027}, {"apellido": "DOTTORI", "nombre": "CRISTIAN ANDRES", "apellido_nombre": "DOTTORI CRISTIAN ANDRES", "empresa": "OFICINA PYME", "direccion": "LOS SAUCES 2095", "localidad": "SAN RAFAEL MENDOZA", "busqueda": "LOS SAUCES 2095, SAN RAFAEL MENDOZA, Mendoza, Argentina", "lat": -34.6256421, "lon": -68.366358}, {"apellido": "GONZALEZ", "nombre": "LUIS ANIBAL", "apellido_nombre": "GONZALEZ LUIS ANIBAL", "empresa": "OFICINA PYME", "direccion": "FRANCISCO ARBET", "localidad": "VILLA 25 DE MAYO", "busqueda": "FRANCISCO ARBET, VILLA 25 DE MAYO, Mendoza, Argentina", "lat": -34.5870143, "lon": -68.5440641}, {"apellido": "AVARSUA", "nombre": "GABRIEL", "apellido_nombre": "AVARSUA GABRIEL", "empresa": "OFICINA PYME", "direccion": "ROBINSON JULIAN 4995", "localidad": "SAN RAFAEL", "busqueda": "ROBINSON JULIAN 4995, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6318849, "lon": -68.2700115}, {"apellido": "BUSTAMANTE", "nombre": "RODRIGO EZEQUIEL", "apellido_nombre": "BUSTAMANTE RODRIGO EZEQUIEL", "empresa": "OFICINA PYME", "direccion": "INDEPENDENCIA 308", "localidad": "VILLA 25 DE MAYO", "busqueda": "INDEPENDENCIA 308, VILLA 25 DE MAYO, Mendoza, Argentina", "lat": -34.581758, "lon": -68.5448474}, {"apellido": "GARAY", "nombre": "DANIEL AGUSTIN", "apellido_nombre": "GARAY DANIEL AGUSTIN", "empresa": "OFICINA PYME", "direccion": "SANTIAGO DERQUI 1872", "localidad": "SAN RAFAEL", "busqueda": "SANTIAGO DERQUI 1872, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6288721, "lon": -68.3644414}, {"apellido": "RUBIO", "nombre": "RODRIGO MAXIMILIANO", "apellido_nombre": "RUBIO RODRIGO MAXIMILIANO", "empresa": "OFICINA PYME", "direccion": "CAPELLAN MARCO 1315", "localidad": "SAN RAFAEL", "busqueda": "CAPELLAN MARCO 1315, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6224682, "lon": -68.3546165}, {"apellido": "AGUILERA", "nombre": "SANTIAGO NICOLAS", "apellido_nombre": "AGUILERA SANTIAGO NICOLAS", "empresa": "OFICINA PYME", "direccion": "NECOCHEA 464", "localidad": "SAN RAFAEL", "busqueda": "NECOCHEA 464, SAN RAFAEL, Mendoza, Argentina", "lat": -34.6255926, "lon": -68.3420669}];
+
+var LM=60,VM=120,DM=100,GM=50;
+var PKW=['rafael ruiz daudet','proa'];
+var CLR=['#2563eb','#16a34a','#d97706','#7c3aed','#dc2626','#0891b2','#db2777','#b45309'];
+var DATA=[],aM=0,aD='todos',CI={},LM2=null,GAS=[];
+var GC={};
+var PRELOADED=false;
+
+/* === DRAG DROP === */
+var dz=document.getElementById('dz');
+dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dov')});
+dz.addEventListener('dragleave',function(){dz.classList.remove('dov')});
+dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('dov');handleFile(e.dataTransfer.files[0])});
+
+/* === BUSCAR TECNICO === */
+function bTec(txt){
+  if(!txt||!txt.trim())return null;
+  var q=txt.trim().toUpperCase();
+  // 1. Coincidencia exacta apellido+nombre (ej: "PELLONI GABRIEL")
+  var r=TECNICOS_DB.find(function(t){return t.apellido_nombre===q});
+  if(r)return r;
+  // 2. El texto empieza con apellido_nombre (ej: "PELLONI GABRIEL NORBERTO")
+  r=TECNICOS_DB.find(function(t){return q.startsWith(t.apellido_nombre)||t.apellido_nombre.startsWith(q)});
+  if(r)return r;
+  // 3. Solo apellido exacto (si no hay duplicados)
+  var byApellido=TECNICOS_DB.filter(function(t){return t.apellido===q});
+  if(byApellido.length===1)return byApellido[0];
+  // 4. Apellido parcial
+  r=TECNICOS_DB.find(function(t){return t.apellido.startsWith(q)||q.startsWith(t.apellido)});
+  if(r)return r;
+  // 5. Búsqueda amplia
+  r=TECNICOS_DB.find(function(t){return t.apellido.includes(q)||t.nombre.includes(q)});
+  return r||null;
+}
+
+/* === GEOCODIFICAR === */
+async function geo(bq){
+  if(!bq)return[null,null];
+  if(GC[bq])return GC[bq];
+  try{
+    var u='https://nominatim.openstreetmap.org/search?'+new URLSearchParams({q:bq,format:'json',limit:1});
+    var r=await fetch(u,{headers:{'User-Agent':'GeotabDashboardCTC/1.0'}});
+    var d=await r.json();
+    if(d&&d.length){var res=[parseFloat(d[0].lat),parseFloat(d[0].lon)];GC[bq]=res;return res;}
+  }catch(e){}
+  GC[bq]=[null,null];return[null,null];
+}
+
+/* === HAVERSINE === */
+function hav(la1,lo1,la2,lo2){
+  var R=6371000,dL=(la2-la1)*Math.PI/180,dO=(lo2-lo1)*Math.PI/180;
+  var a=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dO/2)*Math.sin(dO/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+/* === GASOLINERAS === */
+async function fetchGas(){
+  try{
+    var q='[out:json][timeout:30];(node["amenity"="fuel"](around:60000,-34.6177,-68.3301);way["amenity"="fuel"](around:60000,-34.6177,-68.3301););out center;';
+    var r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:q});
+    var d=await r.json();
+    GAS=(d.elements||[]).map(function(e){
+      return{id:e.id,nombre:(e.tags&&(e.tags.name||e.tags.brand))||'Estacion de servicio',marca:(e.tags&&e.tags.brand)||'',lat:e.lat||(e.center&&e.center.lat)||null,lon:e.lon||(e.center&&e.center.lon)||null};
+    }).filter(function(g){return g.lat&&g.lon});
+  }catch(e){GAS=[];}
+}
+function gasProx(la,lo){
+  if(!la||!lo||!GAS.length)return null;
+  for(var i=0;i<GAS.length;i++){if(hav(la,lo,GAS[i].lat,GAS[i].lon)<=GM)return GAS[i];}
+  return null;
+}
+
+/* === LEER ARCHIVO === */
+function handleFile(file){
+  if(!file)return;
+  ld(true,'Leyendo archivo...');
+  var rd=new FileReader();
+  rd.onload=async function(e){
+    try{
+      // Si es .ctcdata, cargar sesión directamente
+      if(file.name&&file.name.endsWith('.ctcdata')){
+        var sesion=JSON.parse(e.target.result);
+        if(sesion.data&&sesion.data.length){
+          DATA=sesion.data;GAS=sesion.gas||[];
+          if(sesion.gc)Object.assign(GC,sesion.gc);
+          aD='todos';aM=0;calcAl();render();ld(false);return;
+        }
+      }
+      var wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+      var parsed=[];
+      for(var i=0;i<wb.SheetNames.length;i++){
+        var m=parseSheet(wb.Sheets[wb.SheetNames[i]],wb.SheetNames[i],i);
+        if(m&&m.paradas.length>0)parsed.push(m);
+      }
+      if(!parsed.length){alert('No se encontraron datos validos en el archivo.\nVerifique que sea el Excel generado por el script.');ld(false);return;}
+      DATA=parsed; aD='todos';
+      ld(true,'Cargando estaciones de servicio...');
+      await fetchGas();
+      ld(true,'Geocodificando domicilios de tecnicos...');
+      await geoTecs();
+      calcAl();
+      render();
+    }catch(err){
+      alert('Error al leer el archivo:\n'+err.message+'\n\nVerifique que sea el Excel correcto.');
+      console.error(err);
+    }
+    ld(false);
+  };
+  rd.readAsBinaryString(file);
+}
+
+/* === PARSE HOJA === */
+function parseSheet(sheet,name,idx){
+  var rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+  if(rows.length<10)return null;
+  var mlab=sv(rows[1]&&rows[1][0]||name);
+  var t1r=sv(rows[2]&&rows[2][1]||'');
+  var t2r=sv(rows[3]&&rows[3][1]||'');
+  // Coordenadas manuales: col J (índice 9) formato "lat,lon" ej: "-34.617,-68.330"
+  var t1coords=parseCoords(sv(rows[2]&&rows[2][9]||''));
+  var t2coords=parseCoords(sv(rows[3]&&rows[3][9]||''));
+  var desde=fmtD(rows[4]&&rows[4][1]);
+  var hasta=fmtD(rows[5]&&rows[5][1]);
+  // Torre de Control: fila 2, col J (índice 9)
+  var torre=sv(rows[1]&&rows[1][9]||'');
+  // Dedicado a: col K (índice 10)
+  var dedicado=sv(rows[1]&&rows[1][10]||'');
+  // Observaciones fijas del móvil: fila 8 — buscar en varias columnas por si hay merge
+  var obs_excel=(function(){
+    var row7=rows[7]||[];
+    for(var ci=0;ci<row7.length;ci++){var v=sv(row7[ci]);if(v&&v!=='OBSERVACIONES:')return v;}
+    return '';
+  })();
+  var t1b=bTec(t1r), t2b=bTec(t2r);
+  var tecs=[];
+  // Coordenadas: 1) manual del Excel, 2) del DB (ya geocodificadas), 3) null (geocodificar)
+  if(t1r){var l1=t1coords[0]||( t1b&&t1b.lat)||null,o1=t1coords[1]||(t1b&&t1b.lon)||null;tecs.push({raw:t1r,nombre:t1b?(t1b.apellido+' '+t1b.nombre):t1r,dom:t1b?t1b.direccion:'',bq:t1b?t1b.busqueda:'',lat:l1,lon:o1,manualCoord:!!(t1coords[0]||(t1b&&t1b.lat))});}
+  if(t2r){var l2=t2coords[0]||(t2b&&t2b.lat)||null,o2=t2coords[1]||(t2b&&t2b.lon)||null;tecs.push({raw:t2r,nombre:t2b?(t2b.apellido+' '+t2b.nombre):t2r,dom:t2b?t2b.direccion:'',bq:t2b?t2b.busqueda:'',lat:l2,lon:o2,manualCoord:!!(t2coords[0]||(t2b&&t2b.lat))});}
+  // Headers en fila índice 8
+  var hdrs=rows[8]||[];
+  var hi={};
+  hdrs.forEach(function(h,i){if(h)hi[sv(h).trim().toLowerCase()]=i});
+  // Búsqueda flexible de columnas
+  function fc2(names){for(var i=0;i<names.length;i++){var k=names[i].toLowerCase();if(hi[k]!==undefined)return hi[k];}return -1;}
+  var C={
+    n:    fc2(['n° parada','n parada','nro parada']),
+    fec:  fc2(['fecha de parada']),
+    hora: fc2(['hora']),
+    dist: fc2(['distancia (km)','distancia']),
+    durp: fc2(['duración de la parada','duracion de la parada']),
+    ubic: fc2(['ubicación de parada','ubicacion de parada']),
+    vmax: fc2(['velocidad máxima','velocidad maxima']),
+    lat:  fc2(['latitud']),
+    lon:  fc2(['longitud']),
+    cli:  fc2(['clientes','cliente']),
+    trab: fc2(['¿trabajo realizado?','trabajo realizado']),
+    inst: fc2(['tiempo de inst. / reclamo','tiempo inst']),
+    conf: fc2(['conformidad']),
+  };
+  var paradas=[];
+  for(var r=9;r<rows.length;r++){
+    var row=rows[r];
+    if(!row||!row.some(function(v){return v!==''&&v!==null&&v!==undefined}))continue;
+    var ubic=sv(C.ubic>=0?row[C.ubic]:'');
+    if(!ubic)continue;
+    // Parsear duración parada
+    var durRaw=C.durp>=0?row[C.durp]:'';
+    var instRaw=C.inst>=0?row[C.inst]:(C.durp>=0?row[C.durp]:'');
+    var durMin=pdm(durRaw);
+    var instMin=pdm(instRaw);
+    if(durMin===0&&instMin>0)durMin=instMin;
+    var lat=C.lat>=0?parseFloat(row[C.lat])||null:null;
+    var lon=C.lon>=0?parseFloat(row[C.lon])||null:null;
+    var isP=PKW.some(function(k){return ubic.toLowerCase().indexOf(k)>=0});
+    var isPn=durMin>360&&isP;
+    paradas.push({
+      n:parseInt(row[C.n])||0,
+      fec:sv(C.fec>=0?row[C.fec]:''),
+      hora:sv(C.hora>=0?row[C.hora]:''),
+      durMin:durMin,instMin:instMin,
+      loc:ubic,dist:parseFloat(row[C.dist])||0,vmax:parseFloat(row[C.vmax])||0,
+      lat:lat,lon:lon,
+      cli:sv(C.cli>=0?row[C.cli]:''),
+      trab:sv(C.trab>=0?row[C.trab]:''),
+      obs:sv(C.conf>=0?row[C.conf]:''),
+      isP:isP,isPn:isPn,dA:null,gA:null
+    });
+  }
+  return{id:name,label:name,full:mlab,tecs:tecs,desde:desde,hasta:hasta,torre:torre,dedicado:dedicado,obs_manual:obs_excel,color:CLR[idx%CLR.length],paradas:paradas,hC:C.cli>=0,hT:C.trab>=0,hI:C.inst>=0,hCoord:C.lat>=0&&C.lon>=0};
+}
+
+/* === PARSEAR COORDENADAS MANUALES === */
+function parseCoords(str){
+  if(!str||!str.trim())return[null,null];
+  var p=str.split(',');
+  if(p.length>=2){
+    var la=parseFloat(p[0].trim()),lo=parseFloat(p[1].trim());
+    if(!isNaN(la)&&!isNaN(lo))return[la,lo];
+  }
+  return[null,null];
+}
+
+/* === PARSEAR DURACIÓN (robusto) === */
+function pdm(val){
+  if(val===''||val===null||val===undefined)return 0;
+  // Número fraccionario de día (Excel time serial)
+  if(typeof val==='number'){
+    if(val<2)return Math.round(val*24*60); // fracción de día → minutos
+    if(val<1440)return Math.round(val);    // ya son minutos
+    return 0;
+  }
+  // Objeto Date — XLSX.js usa Date.UTC() internamente, por eso leemos UTC
+  if(val instanceof Date){
+    var h=val.getUTCHours(), m=val.getUTCMinutes();
+    return h*60+m;
+  }
+  // String HH:MM:SS o HH:MM
+  if(typeof val==='string'){
+    var parts=val.match(/(\d+):(\d+)/);
+    if(parts)return parseInt(parts[1])*60+parseInt(parts[2]);
+  }
+  return 0;
+}
+
+/* === GEOCODIFICAR TECNICOS === */
+async function geoTecs(){
+  var seen={},pend=[];
+  DATA.forEach(function(m){m.tecs.forEach(function(t){if(t.bq&&!seen[t.bq]){seen[t.bq]=true;pend.push(t)}})});
+  for(var i=0;i<pend.length;i++){
+    var t=pend[i];
+    if(t.bq&&!t.manualCoord){
+      var res=await geo(t.bq);
+      t.lat=res[0];t.lon=res[1];
+      var bq=t.bq;
+      DATA.forEach(function(m){m.tecs.filter(function(x){return x.bq===bq}).forEach(function(x){x.lat=res[0];x.lon=res[1]})});
+    }
+    await new Promise(function(r){setTimeout(r,1100)});
+  }
+}
+
+/* === CALCULAR ALERTAS === */
+function calcAl(){
+  DATA.forEach(function(m){
+    var tok=m.tecs.filter(function(t){return t.lat&&t.lon});
+    m.paradas.forEach(function(p){
+      p.dA=null;p.gA=null;
+      // Domicilio por proximidad GPS
+      if(p.lat&&p.lon){
+        for(var i=0;i<tok.length;i++){
+          var d=hav(p.lat,p.lon,tok[i].lat,tok[i].lon);
+          if(d<=DM){p.dA={tec:tok[i].nombre,dom:tok[i].dom,dist:Math.round(d)};break;}
+        }
+      }
+      // Gasolinera: SOLO por texto manual en columna Conformidad
+      // Escribir en el Excel: YPF, Shell, Axion, Puma, Estación de servicio, etc.
+      var obs=sv2(p.obs).toLowerCase();
+      if(obs.indexOf('estación de servicio')>=0||obs.indexOf('estacion de servicio')>=0||
+         obs.indexOf('gasolinera')>=0||obs.indexOf('combustible')>=0||
+         obs.indexOf('ypf')>=0||obs.indexOf('shell')>=0||
+         obs.indexOf('axion')>=0||obs.indexOf('puma')>=0||
+         obs.indexOf('nafta')>=0||obs.indexOf('surtidor')>=0){
+        p.gA={nombre:p.obs,dist:0,multi:false};
+      }
+    });
+    // Multivisita gasolinera por día
+    var dias=[...new Set(m.paradas.map(function(p){return p.fec}).filter(Boolean))];
+    dias.forEach(function(dia){
+      var gd=m.paradas.filter(function(p){return p.fec===dia&&p.gA});
+      if(gd.length>1)gd.forEach(function(p){p.gA.multi=true});
+    });
+  });
+}
+
+/* === RENDER DASHBOARD === */
+function render(){
+  document.getElementById('up').style.display='none';
+  document.getElementById('dash').style.display='block';
+  var movStr=DATA.map(function(m){return m.label}).join(', ');
+  document.getElementById('rtit').textContent='Reporte GPS \u2014 '+DATA.length+' m\u00f3viles';
+  document.getElementById('rmet').textContent=DATA[0]?DATA[0].desde+' \u2192 '+DATA[0].hasta:'';
+  var aw=flat(function(m){return m.paradas.filter(function(p){return !p.isP&&!p.isPn})});
+  var al=aw.filter(function(p){return p.durMin>=LM});
+  var ag=flat(function(m){return getAl(m,'todos').filter(function(a){return a.lv==='dn'||a.lv==='wn'})});
+  var ad=flat(function(m){return m.paradas.filter(function(p){return p.dA})});
+  var agm=flat(function(m){return m.paradas.filter(function(p){return p.gA&&p.gA.multi})});
+  var aok=flat(function(m){return m.paradas.filter(function(p){return p.trab==='SI'})});
+  var at=flat(function(m){return m.paradas.filter(function(p){return p.trab&&p.trab!=='-'&&p.trab!==''})});
+  var aspd=flat(function(m){return m.paradas.filter(function(p){return p.vmax>=100;});});
+  sg('sg',
+    kpi('M\u00f3viles',DATA.length,''),kpi('Paradas totales',aw.length,''),
+    kpi('Paradas +1h',al.length,al.length>3?'wn':''),kpi('Alertas GPS',ag.length,ag.length>0?'dn':''),
+    kpi('&#127968; Domicilio',ad.length,ad.length>0?'dm':''),kpi('&#9981; Gasolineras',agm.length,agm.length>0?'gs':''),
+    at.length>0?kpi('Trabajos OK',aok.length+'/'+at.length,'ok'):''
+  );
+  document.getElementById('tabs').innerHTML=DATA.map(function(m,i){
+    var dc=m.paradas.filter(function(p){return p.dA}).length;
+    var gc=m.paradas.filter(function(p){return p.gA&&p.gA.multi}).length;
+    var bG=(dc>0?'<span style="background:#fdf4ff;color:#9333ea;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:2px">'+dc+'</span>':'')+
+           (gc>0?'<span style="background:#fff7ed;color:#ea580c;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:2px">&#9981;</span>':'');
+    return '<button class="tab '+(i===aM?'on':'')+'" onclick="sw('+i+')">'+'<span class="tdot" style="background:'+m.color+'"></span>'+m.label+bG+'</button>';
+  }).join('');
+  renderPanel(DATA[aM]);
+}
+
+function sw(i){aM=i;aD='todos';document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
+
+/* === RENDER PANEL === */
+function renderPanel(m){
+  dCharts();
+  var wk=m.paradas.filter(function(p){return !p.isP&&!p.isPn});
+  var lg=wk.filter(function(p){return p.durMin>=LM});
+  var ual=getAl(m,'todos');
+  var dals=m.paradas.filter(function(p){return p.dA});
+  var gals=m.paradas.filter(function(p){return p.gA&&p.gA.multi});
+  var ok=m.paradas.filter(function(p){return p.trab==='SI'}).length;
+  var tt=m.paradas.filter(function(p){return p.trab&&p.trab!=='-'&&p.trab!==''}).length;
+  var km=Math.round(m.paradas.reduce(function(a,p){return a+(p.dist||0)},0));
+  var dias=[...new Set(m.paradas.map(function(p){return p.fec}).filter(Boolean))].sort();
+  var hC=m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon});
+
+  var chips=m.tecs.length?m.tecs.map(function(t,i){
+    return '<div class="chip"><div class="cdot" style="background:'+m.color+';opacity:'+(i===0?1:.55)+'"></div>'+
+           '<div><div style="font-weight:500">'+(t.nombre||t.raw)+'</div>'+
+           (t.dom?'<div class="cdom">&#127968; '+t.dom+(t.lat?( t.manualCoord?' <span style=\"color:var(--ok);font-size:9px\">&#10003; coords OK</span>':''): ' <span style=\"color:var(--wn)\" title=\"Sin geocodificar\">&#9888;</span>')+'</div>':'<div class="cdom" style="color:var(--wn)">Sin domicilio en la base<br><span style=\"font-size:10px\">Agregue \"lat,lon\" en col C del Excel</span></div>')+
+           '</div></div>';
+  }).join(''):'<div class="chip" style="color:var(--wn);border-color:var(--wn)">&#9888; Completar t\u00e9cnico (apellido)</div>';
+
+  var dbts='<div class="df"><span class="dfl">Filtrar por d\u00eda:</span>'+
+    '<button class="db '+(aD==='todos'?'on':'')+'" onclick="chDay(\'todos\',this)">Todos</button>'+
+    dias.map(function(d,i){
+      var dc=DAY_COLORS[i%DAY_COLORS.length];
+      var isOn=aD===d;
+      return '<button class="db '+(isOn?'on':'')+'" onclick="chDay(\''+d+'\',this)" style="'+(isOn?'background:'+dc+';border-color:'+dc+';color:#fff':'border-color:'+dc+';color:'+dc)+'">'+'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+(isOn?'rgba(255,255,255,0.7)':dc)+';margin-right:5px;vertical-align:middle"></span>'+d+'</button>';
+    }).join('')+'</div>';
+
+  var mapH=hC?
+    '<div class="mc">'+
+      '<div class="mch"><div class="mct">&#128506; Recorrido</div>'+
+      '<div class="mf">'+
+        '<button class="mfb on" onclick="fm(\'t\',this)">Todas</button>'+
+        '<button class="mfb" onclick="fm(\'l\',this)">+1h</button>'+
+        '<button class="mfb" onclick="fm(\'a\',this)">Alertas</button>'+
+        '<button class="mfb" onclick="fm(\'d\',this)">&#127968; Dom.</button>'+
+        '<button class="mfb" onclick="fm(\'g\',this)">&#9981; Estaciones</button>'+
+      '</div></div>'+
+      '<div id="mmap"></div>'+
+      '<div class="ml">'+
+        '<div class="mli"><div class="mld" style="background:#2563eb"></div>Normal</div>'+
+        '<div class="mli"><div class="mld" style="background:#d97706"></div>+1h</div>'+
+        '<div class="mli"><div class="mld" style="background:#dc2626"></div>Alerta</div>'+
+        '<div class="mli"><div class="mld" style="background:#9333ea"></div>Domicilio</div>'+
+        '<div class="mli"><div class="mld" style="background:#ea580c"></div>Gasolinera</div>'+
+        '<div class="mli"><div class="mld" style="background:#6b6760"></div>PROA</div>'+
+      '</div>'+
+    '</div>':'';
+
+  document.getElementById('panel').innerHTML=
+    '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:.5rem">'+
+    '<div>'+
+      '<div class="mn">'+m.label+' <span style="font-size:13px;font-weight:400;color:var(--tx2)">'+m.full.replace(m.label,'').replace(':','').trim()+'</span>'+
+      (m.dedicado?' <span style="font-size:11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:2px 10px;border-radius:20px;font-weight:500;vertical-align:middle">&#128295; Dedicado: '+m.dedicado+'</span>':'')+
+      '</div>'+
+    '</div>'+
+    (m.torre?'<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 14px;font-size:12px;color:#1d4ed8;font-weight:500">&#128225; Torre: <strong>'+m.torre+'</strong></div>':'')+
+    '</div>'+
+    '<div class="chips">'+chips+'</div>'+
+    '<div class="kr" id="kpi-row"></div>'+
+    '<div class="sl">Alertas y eventos</div>'+
+    '<div class="als" id="alc"></div>'+
+    '<div id="obs-wrap"></div>'+
+    mapH+dbts+
+    '<div class="cc"><div class="ct">Paradas por d\u00eda</div>'+
+      '<div class="lg"><div class="li"><div class="lsq" style="background:'+m.color+'55;border:1px solid '+m.color+'"></div>Total</div>'+
+      '<div class="li"><div class="lsq" style="background:#fef2f2;border:1px solid #dc2626"></div>+1h</div></div>'+
+      '<div class="cw"><canvas id="cbar"></canvas></div></div>'+
+    (m.hC?'<div id="clc-wrap"></div>':'')+
+    '<div class="ts"><div class="th"><div class="tt">Detalle de paradas</div><div style="font-size:11px;color:var(--tx3)" id="tc"></div></div>'+
+      '<div class="tw"><table><thead><tr>'+
+        '<th>Fecha</th><th>Hora</th><th>N\u00b0</th><th>Ubicaci\u00f3n</th><th>Dist.</th><th>Dur. parada</th>'+
+        (m.hC?'<th>Cliente</th>':'')+(m.hT?'<th>Trabajo</th>':'')+'<th>T. Inst/Reclamo</th><th>Obs.</th>'+
+      '</tr></thead><tbody id="tb"></tbody></table></div></div>';
+
+  updAl(m);updTbl(m);buildObs(m);
+  if(hC)rMapa(m,'t');
+  // Bar chart
+  var barEl=document.getElementById('cbar');
+  if(barEl){
+    var totD=dias.map(function(d){return m.paradas.filter(function(p){return p.fec===d&&!p.isP&&!p.isPn}).length});
+    var larD=dias.map(function(d){return m.paradas.filter(function(p){return p.fec===d&&p.durMin>=LM&&!p.isP&&!p.isPn}).length});
+    CI['bar']=new Chart(barEl,{type:'bar',data:{labels:dias,datasets:[
+      {label:'Total',data:totD,backgroundColor:m.color+'44',borderColor:m.color,borderWidth:1,borderRadius:3},
+      {label:'+1h',data:larD,backgroundColor:'#dc262655',borderColor:'#dc2626',borderWidth:1,borderRadius:3}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10},color:'#9c9890'},grid:{color:'rgba(0,0,0,.05)'}},
+      x:{ticks:{font:{size:10},color:'#9c9890'},grid:{display:false}}}}});
+  }
+  buildCli(m);
+}
+
+
+/* === CUADRO DE OBSERVACIONES === */
+function buildObs(m){
+  var wrap=document.getElementById('obs-wrap');
+  if(!wrap)return;
+  var txt=m.obs_manual||'';
+  // Si no hay observaciones, mostrar igualmente para que puedan escribir
+  wrap.innerHTML='<div class="obs-box">'+
+    '<div class="obs-box-hdr">'+
+      '<span class="obs-box-title">&#128221; Observaciones del m\u00f3vil</span>'+
+      (txt?'':'<span style="font-size:10px;color:var(--tx3)">opcional</span>')+
+      '<span class="obs-saved" id="obs-saved-msg">Guardado</span>'+
+    '</div>'+
+    '<textarea class="obs-ta" id="obs-ta" placeholder="Agreg\u00e1 observaciones sobre este m\u00f3vil (dejar en blanco para no mostrar)..." onblur="saveObs('+aM+')" oninput="clearObsMsg()">'+txt+'</textarea>'+
+  '</div>';
+  if(!txt)wrap.style.display='';
+}
+
+function saveObs(movilIdx){
+  var ta=document.getElementById('obs-ta');
+  if(!ta)return;
+  DATA[movilIdx].obs_manual=ta.value;
+  var msg=document.getElementById('obs-saved-msg');
+  if(msg){msg.style.display='inline';setTimeout(function(){msg.style.display='none'},2000);}
+}
+function clearObsMsg(){
+  var msg=document.getElementById('obs-saved-msg');
+  if(msg)msg.style.display='none';
+}
+
+/* === GRAFICO CLIENTES === */
+function buildCli(m){
+  var wrap=document.getElementById('clc-wrap');
+  if(!wrap)return;
+  var pf=pFilt(m).filter(function(p){return p.cli&&p.cli.trim()&&p.cli!=='-'&&p.instMin>0&&!p.isP});
+  if(!pf.length){wrap.innerHTML='';return;}
+  var mp={};
+  pf.forEach(function(p){var k=p.cli.trim();if(!mp[k])mp[k]={c:k,tot:0,v:0};mp[k].tot+=p.instMin;mp[k].v++});
+  var items=Object.values(mp).sort(function(a,b){return b.tot-a.tot});
+  var mx=items[0].tot;
+  var bars=items.map(function(it){
+    var h=Math.max(6,Math.round((it.tot/mx)*120));
+    var col=it.tot>=VM?'var(--dn)':it.tot>=LM?'var(--wn)':m.color;
+    return '<div class="cbw" title="Cliente: '+it.c+' | '+fD(it.tot)+' | '+it.v+' visita(s)">'+
+           '<div class="cb" style="height:'+h+'px;background:'+col+'55;border:1.5px solid '+col+'">'+
+           '<div class="cbd">'+fD(it.tot)+'</div></div>'+
+           '<div class="cbl">'+it.c+'</div></div>';
+  }).join('');
+  wrap.innerHTML='<div class="clc"><div class="clh"><div class="ct" style="margin:0">Duraci\u00f3n por cliente (mayor \u2192 menor)</div>'+
+    '<div style="font-size:11px;color:var(--tx3)">'+items.length+' clientes &middot; scrolle\u00e1 &rarr;</div></div>'+
+    '<div class="cls"><div class="cli">'+bars+'</div></div></div>';
+}
+
+/* === FILTRO DIA === */
+function pFilt(m){return aD==='todos'?m.paradas:m.paradas.filter(function(p){return p.fec===aD})}
+
+/* === ACTUALIZAR KPIs CON FILTRO === */
+function updKpis(m){
+  var ps=pFilt(m);
+  var wkf=ps.filter(function(p){return !p.isP&&!p.isPn});
+  var lgf=wkf.filter(function(p){return p.durMin>=LM});
+  var dalsf=ps.filter(function(p){return p.dA});
+  var galsf=ps.filter(function(p){return p.gA&&p.gA.multi});
+  var gasMinF=ps.filter(function(p){return p.gA}).reduce(function(a,p){return a+p.durMin},0);
+  var spdF=ps.filter(function(p){return p.vmax>=100});
+  var okf=ps.filter(function(p){return p.trab==='SI'}).length;
+  var totf=ps.filter(function(p){return p.trab&&p.trab!=='-'&&p.trab!==''}).length;
+  var kmf=Math.round(ps.reduce(function(a,p){return a+(p.dist||0)},0));
+  var alF=getAl(m,aD).filter(function(a){return a.lv==='dn'||a.lv==='wn'}).length;
+  var el=document.getElementById('kpi-row');
+  if(!el)return;
+  el.innerHTML=
+    ksi('Paradas',wkf.length,'')+
+    ksi('Paradas +1h',lgf.length,lgf.length>2?'dn':lgf.length>0?'wn':'')+
+    ksi('Alertas GPS',alF,alF>0?'dn':'')+
+    ksi('&#127968; Dom.',dalsf.length,dalsf.length>0?'dm':'')+
+    ksi('&#9981; Est.',galsf.length,galsf.length>0?'gs':'')+
+    ksi('&#128680; +100km/h',spdF.length,spdF.length>0?'dn':'')+
+    (gasMinF>0?ksi('Min. estación',fD(gasMinF),'gs'):'')+
+    (totf>0?ksi('Trabajos OK',okf+'/'+totf,'ok'):'')+
+    ksi('Km',kmf,'');
+}
+
+function chDay(d,btn){
+  aD=d;
+  document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
+  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);
+  if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
+}
+
+/* === ALERTAS === */
+function getAl(m,dia){
+  var ps=dia==='todos'?m.paradas:m.paradas.filter(function(p){return p.fec===dia});
+  var al=[];
+  ps.forEach(function(p){
+    if(p.dA)al.push({lv:'dm',f:p.fec,h:p.hora,loc:p.loc,msg:'&#127968; Posible visita al domicilio de '+p.dA.tec+' \u2014 '+p.dA.dom+' ('+p.dA.dist+'m)'});
+    if(p.gA&&p.gA.multi)al.push({lv:'gs',f:p.fec,h:p.hora,loc:p.loc,msg:'&#9981; M\u00faltiple visita a estaci\u00f3n: '+p.gA.nombre+' \u2014 tiempo: '+fD(p.durMin)});
+    var o=(p.obs||'').toUpperCase();
+    if(o.indexOf('ALERTA')>=0||o.indexOf('NO PERTENECE')>=0||o.indexOf('NO REPROGRAMA')>=0)al.push({lv:'dn',f:p.fec,h:p.hora,loc:p.loc,msg:p.obs});
+    if(p.vmax>=100)al.push({lv:'spd',f:p.fec,h:p.hora,loc:p.loc,msg:'\uD83D\uDEA8 Exceso de velocidad: '+p.vmax+' km/h'});
+    else if(p.durMin>=VM&&!p.isP&&!p.isPn)al.push({lv:'wn',f:p.fec,h:p.hora,loc:p.loc,msg:'Parada de '+fD(p.durMin)+' \u2014 supera las 2 horas'});
+  });
+  return al;
+}
+function updAl(m){
+  var al=getAl(m,aD),c=document.getElementById('alc');if(!c)return;
+  c.innerHTML=!al.length?'<div class="na">Sin alertas para el per\u00edodo seleccionado</div>':
+    al.map(function(a){return '<div class="ai '+a.lv+'"><div><div class="ab">'+a.f+' '+a.h+' \u2014 '+a.loc+'</div><div class="am">'+a.msg+'</div></div></div>'}).join('');
+}
+
+/* === TABLA === */
+function updTbl(m){
+  var ps=pFilt(m),tb=document.getElementById('tb'),tc=document.getElementById('tc');if(!tb)return;
+  if(tc)tc.textContent=ps.length+' registros';
+  tb.innerHTML=ps.map(function(p){
+    var il=!p.isP&&!p.isPn&&p.durMin>=LM;
+    var db2=p.isPn?'<span class="bd bdn2">pernocte</span>':il?'<span class="bd '+(p.durMin>=VM?'bdn':'bdw')+'">'+fD(p.durMin)+'</span>':fD(p.durMin);
+    var tb2=p.trab==='SI'?'<span class="bd bdo">SI</span>':p.trab&&p.trab!=='-'&&p.trab!==''?'<span class="bd bdw">'+p.trab+'</span>':'';
+    var ob=p.obs&&p.obs!=='OK'&&p.obs.trim()?'<span class="bd '+(p.obs.toUpperCase().indexOf('ALERTA')>=0?'bdn':'bdn2')+'">'+p.obs.slice(0,45)+'</span>':p.obs==='OK'?'<span style="font-size:11px;color:var(--tx3)">OK</span>':'';
+    var dm=p.dA?'<span class="bd bdm">&#127968; '+p.dA.dist+'m</span>':'';
+    var gm=p.gA?'<span class="bd '+(p.gA.multi?'bdgm':'bdg')+'">&#9981;'+(p.gA.multi?' x2+':'')+' '+fD(p.durMin)+'</span>':'';
+    var spdb=p.vmax>=100?'<span class="bd" style="background:#fff1f2;color:#e11d48">&#128680; '+p.vmax+' km/h</span>':'';
+    var rc=p.isP?'rp':p.dA?'rd':p.gA?'rg':p.vmax>=100?'rspd':'';
+    return '<tr class="'+rc+'">'+
+      '<td style="white-space:nowrap;color:var(--tx2)">'+p.fec+'</td>'+
+      '<td style="white-space:nowrap;font-family:var(--fm);font-size:11px">'+p.hora+'</td>'+
+      '<td style="color:var(--tx3);text-align:center">'+p.n+'</td>'+
+      '<td style="max-width:200px;font-size:12px">'+p.loc+' '+dm+gm+spdb+'</td>'+
+      '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap">'+p.dist+' km</td>'+
+      '<td>'+db2+'</td>'+
+      (m.hC?'<td style="font-family:var(--fm);font-size:11px">'+p.cli+'</td>':'')+
+      (m.hT?'<td>'+tb2+'</td>':'')+
+      '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap">'+(p.instMin>0?fD(p.instMin):'\u2014')+'</td>'+
+      '<td>'+ob+'</td></tr>';
+  }).join('');
+}
+
+
+/* === COLORES POR DÍA === */
+var DAY_COLORS=['#2563eb','#d97706','#16a34a','#9333ea','#dc2626','#0891b2','#db2777','#b45309','#0d9488','#7c3aed'];
+function getDayColor(fec,m,overrideColor){
+  if(overrideColor)return overrideColor; // si es alerta/dom/gas usa el color especial
+  if(!fec)return '#6b6760';
+  var dias=[...new Set(m.paradas.map(function(p){return p.fec}).filter(Boolean))].sort();
+  var idx=dias.indexOf(fec);
+  return idx>=0?DAY_COLORS[idx%DAY_COLORS.length]:'#2563eb';
+}
+
+/* === MAPA === */
+function rMapa(m,f){
+  if(typeof L==='undefined'){console.warn('Leaflet no cargado aún');return;}
+  if(LM2){try{LM2.remove();}catch(e){}LM2=null;}
+  var el=document.getElementById('mmap');if(!el)return;
+  LM2=L.map('mmap');
+  // Fix: leaflet-geosearch resetea los íconos — restaurar paths correctos
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap',maxZoom:18}).addTo(LM2);
+  // Buscador de direcciones en el mapa
+  try{
+    if(typeof L!=='undefined'&&typeof GeoSearch!=='undefined'){
+      var provider=new GeoSearch.OpenStreetMapProvider({params:{countrycodes:'ar','accept-language':'es'}});
+      var searchCtrl=new GeoSearch.GeoSearchControl({
+          provider:provider,
+          style:'bar',
+          searchLabel:'Buscar dirección o cliente...',
+          autoClose:true,
+          keepResult:true,
+          position:'topright',
+          marker:{
+            icon:L.divIcon({
+              className:'',
+              html:'<div style="background:#2563eb;color:#fff;border:2px solid #fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.4)">📍</div>',
+              iconSize:[22,22],
+              iconAnchor:[11,22]
+            })
+          }
+        });
+      LM2.addControl(searchCtrl);
+    }
+  }catch(e){console.warn('Buscador no disponible:',e);}
+  var aSet={};getAl(m,'todos').filter(function(a){return a.lv==='dn'}).forEach(function(a){aSet[a.loc]=true});
+  var ps=pFilt(m).filter(function(p){return p.lat&&p.lon});
+  if(f==='l')ps=ps.filter(function(p){return p.durMin>=LM&&!p.isP});
+  if(f==='a')ps=ps.filter(function(p){return aSet[p.loc]||p.durMin>=VM});
+  if(f==='d')ps=ps.filter(function(p){return p.dA});
+  if(f==='g')ps=ps.filter(function(p){return p.gA});
+  var bds=[];
+
+  // Gasolineras (todas del área)
+  if(f==='t'||f==='g'){
+    var gVis={};m.paradas.filter(function(p){return p.gA}).forEach(function(p){var k=p.gA.nombre;if(!gVis[k])gVis[k]={n:k,vs:[]};gVis[k].vs.push(p)});
+    // En 'todos': solo mostrar las visitadas. En 'g': mostrar todas.
+    var gasAMostrar=f==='g'?GAS:GAS.filter(function(g){return gVis[g.nombre]});
+    gasAMostrar.forEach(function(g){
+      if(!g.lat||!g.lon)return;
+      var v=gVis[g.nombre];var nv=v?v.vs.length:0;var mul=v&&nv>1;
+      var bg=mul?'#dc2626':nv>0?'#ea580c':'#9c9890';
+      var lbl=nv>0?'&#9981; '+nv+'x':'&#9981;';
+      var ic=L.divIcon({className:'',html:'<div style="background:'+bg+';color:#fff;border:2px solid #fff;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.3);white-space:nowrap">'+lbl+'</div>',iconAnchor:[20,16]});
+      var pop=v?'<b>&#9981; '+g.nombre+'</b><br><span style="color:'+bg+';font-weight:600">Visitada '+nv+'x'+(mul?' \u2014 MULTIVISITA':'')+'</span><br>'+v.vs.map(function(p){return p.fec+' '+p.hora+' \u2014 '+fD(p.durMin)}).join('<br>'):
+               '<b>&#9981; '+g.nombre+'</b><br><span style="color:#9c9890">Sin visitas</span>';
+      L.marker([g.lat,g.lon],{icon:ic,zIndexOffset:nv>0?500:50}).addTo(LM2).bindPopup(pop);
+      if(nv>0)bds.push([g.lat,g.lon]);
+    });
+    if(f==='g'&&GAS.length){var all=GAS.filter(function(g){return g.lat&&g.lon}).map(function(g){return[g.lat,g.lon]});if(all.length)LM2.fitBounds(all,{padding:[30,30]});return;}
+  }
+  // Domicilios
+  if(f==='t'||f==='d'){
+    m.tecs.forEach(function(t){
+      if(t.lat&&t.lon){
+        L.circle([t.lat,t.lon],{radius:100,color:'#9333ea',fillColor:'#9333ea',fillOpacity:.08,weight:1.5,dashArray:'5,5'}).addTo(LM2);
+        var ic=L.divIcon({className:'',html:'<div style="background:#9333ea;color:#fff;border:2px solid #fff;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.3);white-space:nowrap">&#127968; '+t.nombre.split(' ')[0]+'</div>',iconAnchor:[35,20]});
+        L.marker([t.lat,t.lon],{icon:ic}).addTo(LM2).bindPopup('<b>'+t.nombre+'</b><br>'+t.dom);
+        bds.push([t.lat,t.lon]);
+      }
+    });
+  }
+  if(f==='t'&&ps.length>1)L.polyline(ps.map(function(p){return[p.lat,p.lon]}),{color:m.color,weight:2.5,opacity:.4,dashArray:'6,4'}).addTo(LM2);
+  ps.forEach(function(p){
+    var ia=aSet[p.loc]||p.durMin>=VM;var il=p.durMin>=LM&&!p.isP&&!p.isPn;
+    var specialCol=p.dA?'#9333ea':p.gA?'#ea580c':p.vmax>=100?'#e11d48':p.isP?'#6b6760':ia?'#dc2626':il?'#d97706':null;
+    var col=specialCol||getDayColor(p.fec,DATA[aM]);
+    var sz=p.dA||ia?22:il||p.gA?18:16;
+    var ic=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:'+(sz>16?'10':'9')+'px;font-weight:700;font-family:sans-serif">'+(p.n||'')+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+    var di=p.dA?'<div style="margin-top:6px;padding:4px 6px;background:#fdf4ff;border-radius:4px;font-size:11px;color:#9333ea">&#127968; A '+p.dA.dist+'m del domicilio de '+p.dA.tec+'</div>':'';
+    var gi=p.gA?'<div style="margin-top:6px;padding:4px 6px;background:#fff7ed;border-radius:4px;font-size:11px;color:#ea580c">&#9981; '+p.gA.nombre+(p.gA.multi?' \u2014 MULTIVISITA':'')+' \u2014 '+fD(p.durMin)+'</div>':'';
+    var oi=p.obs&&p.obs!=='OK'?'<div style="margin-top:6px;padding:4px 6px;background:#fef2f2;border-radius:4px;font-size:11px;color:#dc2626">'+p.obs+'</div>':'';
+    L.marker([p.lat,p.lon],{icon:ic}).addTo(LM2).bindPopup(
+      '<div style="font-family:sans-serif;font-size:12px;min-width:195px">'+
+      '<div style="font-weight:600;margin-bottom:4px">'+p.fec+' '+p.hora+' \u2014 Parada '+p.n+'</div>'+
+      '<div style="color:#6b6760;font-size:11px;margin-bottom:6px">'+p.loc+'</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:11px">'+
+        '<span style="color:#9c9890">Dur.</span><span>'+fD(p.durMin)+'</span>'+
+        '<span style="color:#9c9890">T.Inst/Reclamo</span><span>'+(p.instMin>0?fD(p.instMin):'\u2014')+'</span>'+
+        '<span style="color:#9c9890">Dist.</span><span>'+p.dist+' km</span>'+
+        '<span style="color:#9c9890">V.m\u00e1x</span><span>'+p.vmax+' km/h</span>'+
+        (p.cli?'<span style="color:#9c9890">Cliente</span><span>'+p.cli+'</span>':'')+
+        (p.trab?'<span style="color:#9c9890">Trabajo</span><span>'+p.trab+'</span>':'')+
+      '</div>'+di+gi+oi+'</div>');
+    bds.push([p.lat,p.lon]);
+  });
+  if(bds.length)LM2.fitBounds(bds,{padding:[35,35]});
+}
+function fm(f,btn){document.querySelectorAll('.mfb').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');rMapa(DATA[aM],f);}
+
+/* === EXPORTAR (self-contained, sin API calls) === */
+function guardarSesion(){
+  ld(true,'Guardando sesi\u00f3n...');
+  setTimeout(function(){
+    try{
+      var hoy=new Date().toLocaleDateString('es-AR').replace(/\//g,'-');
+      var movs=DATA.map(function(m){return m.label}).join('-');
+      var sesion={
+        version:1,
+        fecha:hoy,
+        moviles:movs,
+        data:DATA,
+        gas:GAS,
+        gc:GC
+      };
+      var blob=new Blob([JSON.stringify(sesion)],{type:'application/json'});
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='Sesion GPS '+hoy+' ('+movs+').ctcdata';
+      a.click();
+      ld(false);
+      toast('\u2713 Sesi\u00f3n guardada \u2014 mand\u00e1 el .ctcdata al supervisor');
+    }catch(e){ld(false);alert('Error: '+e.message);}
+  },200);
+}
+
+function cargarSesion(file){
+  if(!file)return;
+  ld(true,'Cargando sesi\u00f3n...');
+  var rd=new FileReader();
+  rd.onload=function(e){
+    try{
+      var sesion=JSON.parse(e.target.result);
+      if(!sesion.data||!sesion.data.length){alert('Archivo de sesi\u00f3n inv\u00e1lido.');ld(false);return;}
+      DATA=sesion.data;
+      GAS=sesion.gas||[];
+      if(sesion.gc)Object.assign(GC,sesion.gc);
+      aD='todos';aM=0;
+      calcAl();
+      render();
+    }catch(err){alert('Error al cargar sesi\u00f3n:\n'+err.message);}
+    ld(false);
+  };
+  rd.readAsText(file);
+}
+
+
+/* === HELPERS === */
+function flat(fn){return DATA.reduce(function(a,m){return a.concat(fn(m))},[])}
+function sv2(v){return v===null||v===undefined?'':(String(v)||''). trim()}
+function sv(v){return v===null||v===undefined?'':String(v).trim()}
+function fD(m){if(!m)return'\u2014';var h=Math.floor(m/60),mm=m%60;return h>0?h+'h '+mm+'min':mm+'min'}
+function fmtD(val){
+  if(!val)return'';
+  if(val instanceof Date)return val.toLocaleDateString('es-AR');
+  if(typeof val==='number'){try{return new Date(Math.round((val-25569)*86400000)).toLocaleDateString('es-AR');}catch(e){return'';}}
+  return String(val);
+}
+function kpi(l,v,c){return'<div class="kpi"><div class="kpi-l">'+l+'</div><div class="kpi-v '+c+'">'+v+'</div></div>'}
+function ksi(l,v,c){return'<div class="ks"><div class="kpi-l">'+l+'</div><div class="kpi-v '+c+'">'+v+'</div></div>'}
+function sg(id){var s=document.getElementById(id);s.innerHTML=Array.prototype.slice.call(arguments,1).join('');}
+function dCharts(){Object.values(CI).forEach(function(c){try{c.destroy();}catch(e){}});CI={};if(LM2){try{LM2.remove();}catch(e){}LM2=null;}}
+function ld(v,t){document.getElementById('ld').style.display=v?'flex':'none';if(t)document.getElementById('lt').textContent=t;}
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(function(){t.classList.remove('on')},3500);}
+function resetDash(){dCharts();DATA=[];aM=0;aD='todos';document.getElementById('dash').style.display='none';document.getElementById('up').style.display='flex';document.getElementById('fi').value='';}
+
+/* === AUTO-RENDER si es archivo exportado === */
+/*__PRELOAD__*/
+window.addEventListener('load',function(){
+  if(PRELOADED&&typeof DATA!=='undefined'&&DATA&&DATA.length>0){
+    // Restaurar geocache si existe
+    if(typeof GC2!=='undefined'&&GC2)Object.assign(GC,GC2);
+    // Restaurar gasolineras si existen
+    if(typeof GAS!=='undefined'&&GAS&&GAS.length>0){} // ya asignadas
+    calcAl();
+    render();
+  }
+});
+
+</script>
+</body>
+</html>
