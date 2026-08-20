@@ -227,6 +227,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="tbl"><div class="tblogo">CTC &middot; GPS</div><div class="tbsep"></div><div class="tbtit">Reportes GPS</div></div>
     <div style="display:flex;align-items:center;gap:10px">
       <div class="theme-sw" id="theme-sw-hist"></div>
+      <button class="bg" id="install-btn" onclick="handleInstallClick()" style="display:none">&#128241; Instalar app</button>
       <button class="bo" id="hist-back-btn" onclick="closeHistorial()" style="display:none">&#8592; Volver al reporte</button>
     </div>
   </div>
@@ -235,6 +236,19 @@ tbody tr:last-child td{border-bottom:none}
     <div class="hist-sub">Escrib&#237; el nombre del m&#243;vil (ej: CTC020) o una fecha para encontrar el reporte que necesit&#225;s.</div>
     <input class="hist-search" id="hist-search" placeholder="Buscar m&#243;vil o fecha..." oninput="renderHistList(this.value)">
     <div id="hist-list"></div>
+  </div>
+</div>
+
+<div class="modal-ov" id="installModal">
+  <div class="modal-bx">
+    <div class="modal-hd"><h3>&#128241; Instalar la app</h3><button class="modal-x" onclick="closeInstallModal()">&#10005;</button></div>
+    <div style="font-size:13px;color:var(--tx);line-height:1.7">
+      En iPhone, Apple no deja instalar con un solo bot&#243;n. Son 3 pasos:<br><br>
+      <b>1.</b> Toc&#225; el &#237;cono de <b>compartir</b> (el cuadrado con la flecha hacia arriba), abajo al centro de Safari.<br>
+      <b>2.</b> Desliz&#225; la lista hacia abajo y toc&#225; <b>"Agregar a inicio"</b>.<br>
+      <b>3.</b> Toc&#225; <b>"Agregar"</b> arriba a la derecha.<br><br>
+      Listo, te queda el &#237;cono en la pantalla de inicio como cualquier app.
+    </div>
   </div>
 </div>
 
@@ -511,6 +525,40 @@ async function geoTecs(){
     await new Promise(function(r){setTimeout(r,1100)});
   }
 }
+
+/* === INSTALAR APP (PWA) === */
+var deferredInstallPrompt=null;
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+}
+function isIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+function refreshInstallBtn(){
+  var btn=document.getElementById('install-btn');
+  if(!btn)return;
+  if(isStandalone()){btn.style.display='none';return;}
+  if(deferredInstallPrompt||isIOS()){btn.style.display='';}else{btn.style.display='none';}
+}
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  refreshInstallBtn();
+});
+window.addEventListener('appinstalled',function(){
+  deferredInstallPrompt=null;
+  refreshInstallBtn();
+  toast('\u2713 App instalada');
+});
+function handleInstallClick(){
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(function(){deferredInstallPrompt=null;refreshInstallBtn();});
+  }else if(isIOS()){
+    document.getElementById('installModal').classList.add('on');
+  }
+}
+function closeInstallModal(){document.getElementById('installModal').classList.remove('on');}
 
 /* === MODAL AGREGAR TÉCNICO === */
 function openTecModal(){document.getElementById('tecModal').classList.add('on')}
@@ -1214,6 +1262,7 @@ function resetDash(){dCharts();DATA=[];aM=0;aD='todos';document.getElementById('
 /* === AUTO-RENDER si es archivo exportado === */
 /*__PRELOAD__*/
 window.addEventListener('load',function(){
+  refreshInstallBtn();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(function(){});
   }
