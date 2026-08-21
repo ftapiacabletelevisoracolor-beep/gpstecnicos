@@ -2,7 +2,7 @@
   "name": "Reportes GPS - CTC",
   "short_name": "GPS CTC",
   "description": "Consulta de reportes GPS de móviles y técnicos - CTC San Rafael",
-  "start_url": "./visor.html",
+  "start_url": "./GPS_T%C3%89CNICOS_FINAL%20(2).html?modo=supervisor",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",

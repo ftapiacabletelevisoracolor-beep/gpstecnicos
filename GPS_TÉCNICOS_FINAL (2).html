@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Dashboard GPS — CTC</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2563eb">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GPS CTC">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -201,12 +208,15 @@ tbody tr:last-child td{border-bottom:none}
     </div>
     <div class="tbr">
       <div class="theme-sw" id="theme-sw-dash"></div>
-      <button class="bo" onclick="openTecModal()">&#128101; Técnico</button>
-      <button class="bo" onclick="openHistorial()">&#128197; Historial</button>
-      <button class="bo" onclick="exportToHistorial()">&#128228; Guardar en historial</button>
-      <button class="bg" onclick="guardarSesion()">&#128190; Guardar sesión</button>
+      <button class="bg" id="install-btn" onclick="handleInstallClick()" style="display:none">&#128241; Instalar app</button>
+      <button class="bo" id="btn-tecnico" onclick="openTecModal()">&#128101; Técnico</button>
+      <button class="bo" id="btn-gh-config" onclick="openGhConfigModal()">&#9881;&#65039; GitHub</button>
+      <button class="bo" id="btn-historial" onclick="openHistorial()">&#128197; Historial</button>
+      <button class="bo" id="btn-guardar-hist" onclick="exportToHistorial()">&#128228; Guardar en historial</button>
+      <button class="bg" id="btn-guardar-sesion" onclick="guardarSesion()">&#128190; Guardar sesión</button>
       <button class="bo" onclick="window.print()">Imprimir</button>
-      <button class="bo" onclick="resetDash()">Cargar otro</button>
+      <button class="bo" id="btn-cargar-otro" onclick="resetDash()">Cargar otro</button>
+      <button class="bg" id="btn-buscar-otro" onclick="backToSearch()" style="display:none">&#128269; Buscar otro reporte</button>
     </div>
   </div>
   <div class="main">
@@ -221,13 +231,49 @@ tbody tr:last-child td{border-bottom:none}
 <div id="hist">
   <div class="hist-tb">
     <div class="tbl"><div class="tblogo">CTC &middot; GPS</div><div class="tbsep"></div><div class="tbtit">Historial de reportes</div></div>
-    <button class="bo" onclick="closeHistorial()">&#8592; Volver</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="theme-sw" id="theme-sw-hist"></div>
+      <button class="bo" id="hist-back-btn" onclick="closeHistorial()">&#8592; Volver</button>
+    </div>
   </div>
   <div class="hist-main">
     <div class="hist-tit">Reportes publicados</div>
     <div class="hist-sub">Busc&#225; por m&#243;vil (ej: CTC020) o por fecha. Hac&#233; clic en un reporte para abrirlo.</div>
     <input class="hist-search" id="hist-search" placeholder="Buscar m&#243;vil o fecha..." oninput="renderHistList(this.value)">
     <div id="hist-list"></div>
+  </div>
+</div>
+
+<div class="modal-ov" id="ghConfigModal">
+  <div class="modal-bx">
+    <div class="modal-hd"><h3>&#9881;&#65039; Publicar directo en GitHub</h3><button class="modal-x" onclick="closeGhConfigModal()">&#10005;</button></div>
+    <div style="font-size:12px;color:var(--tx2);line-height:1.6;margin-bottom:1rem">
+      Si complet&#225;s esto, el bot&#243;n "Guardar en historial" va a subir los archivos <b>directo a tu repo</b>, sin descargar ni arrastrar nada. Se guarda solo en este navegador — no lo completes en compus que no sean tuyas.
+    </div>
+    <div class="modal-fl"><label>Usuario / organización de GitHub</label><input id="gh-owner" placeholder="ftapiacabletelevisoracolor-beep"></div>
+    <div class="modal-fl"><label>Nombre del repositorio</label><input id="gh-repo" placeholder="gpstecnicos"></div>
+    <div class="modal-fl"><label>Rama</label><input id="gh-branch" placeholder="main"></div>
+    <div class="modal-fl"><label>Token de acceso (Personal Access Token)</label><input id="gh-token" type="password" placeholder="ghp_..."></div>
+    <div style="display:flex;gap:8px">
+      <button class="ubtn" style="flex:1" onclick="saveGhConfig()">Guardar conexión</button>
+      <button class="bo" onclick="clearGhConfig()">Borrar</button>
+    </div>
+    <div class="modal-hint">
+      &#191;C&#243;mo saco el token? En GitHub: foto de perfil (arriba a la derecha) &rarr; Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Fine-grained tokens &rarr; Generate new token. Eleg&#237; SOLO el repo <b>gpstecnicos</b> (no "todos los repos"), y en Permissions activ&#225; <b>Contents: Read and write</b>. Copiá el token generado y peg&#225;lo ac&#225; arriba — GitHub solo te lo muestra una vez.
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="installModal">
+  <div class="modal-bx">
+    <div class="modal-hd"><h3>&#128241; Instalar la app</h3><button class="modal-x" onclick="closeInstallModal()">&#10005;</button></div>
+    <div style="font-size:13px;color:var(--tx);line-height:1.7">
+      En iPhone, Apple no deja instalar con un solo bot&#243;n. Son 3 pasos:<br><br>
+      <b>1.</b> Toc&#225; el &#237;cono de <b>compartir</b> (el cuadrado con la flecha hacia arriba), abajo al centro de Safari.<br>
+      <b>2.</b> Desliz&#225; la lista hacia abajo y toc&#225; <b>"Agregar a inicio"</b>.<br>
+      <b>3.</b> Toc&#225; <b>"Agregar"</b> arriba a la derecha.<br><br>
+      Listo, te queda el &#237;cono en la pantalla de inicio como cualquier app.
+    </div>
   </div>
 </div>
 
@@ -254,6 +300,7 @@ var DATA=[],aM=0,aD='todos',CI={},LM2=null,GAS=[];
 var GC={};
 var PRELOADED=false;
 var HIST_INDEX=[],HIST_LOADED=false;
+var SUPERVISOR_MODE=new URLSearchParams(location.search).get('modo')==='supervisor';
 
 /* === TÉCNICOS AGREGADOS DESDE EL DASHBOARD (persisten en este navegador) === */
 var TEC_EXTRA_KEY='ctc_tecnicos_extra_v1';
@@ -273,7 +320,7 @@ var THEME_KEY='ctc_dash_theme';
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
   try{localStorage.setItem(THEME_KEY,t);}catch(e){}
-  ['theme-sw-up','theme-sw-dash'].forEach(function(id){
+  ['theme-sw-up','theme-sw-dash','theme-sw-hist'].forEach(function(id){
     var el=document.getElementById(id);if(!el)return;
     el.innerHTML=['light','dark','sepia'].map(function(k){
       return '<div class="theme-dot '+(k===t?'on':'')+'" data-t="'+k+'" title="'+({light:'Claro',dark:'Oscuro',sepia:'Sepia'})[k]+'" onclick="applyTheme(\''+k+'\')"></div>';
@@ -519,6 +566,98 @@ async function geoTecs(){
 }
 
 /* === MODAL AGREGAR TÉCNICO === */
+/* === CONEXIÓN DIRECTA CON GITHUB (opcional) === */
+var GH_KEYS={token:'ctc_gh_token',owner:'ctc_gh_owner',repo:'ctc_gh_repo',branch:'ctc_gh_branch'};
+function ghGet(k){try{return localStorage.getItem(GH_KEYS[k])||'';}catch(e){return '';}}
+function ghSet(k,v){try{localStorage.setItem(GH_KEYS[k],v);}catch(e){}}
+function openGhConfigModal(){
+  document.getElementById('gh-owner').value=ghGet('owner')||'ftapiacabletelevisoracolor-beep';
+  document.getElementById('gh-repo').value=ghGet('repo')||'gpstecnicos';
+  document.getElementById('gh-branch').value=ghGet('branch')||'main';
+  document.getElementById('gh-token').value=ghGet('token');
+  document.getElementById('ghConfigModal').classList.add('on');
+}
+function closeGhConfigModal(){document.getElementById('ghConfigModal').classList.remove('on');}
+function saveGhConfig(){
+  ghSet('owner',document.getElementById('gh-owner').value.trim());
+  ghSet('repo',document.getElementById('gh-repo').value.trim());
+  ghSet('branch',document.getElementById('gh-branch').value.trim()||'main');
+  ghSet('token',document.getElementById('gh-token').value.trim());
+  closeGhConfigModal();
+  refreshGuardarHistBtn();
+  toast(ghGet('token')?'\u2713 Conectado \u2014 ahora "Guardar en historial" publica directo':'Configuraci\u00f3n guardada');
+}
+function clearGhConfig(){
+  ['token','owner','repo','branch'].forEach(function(k){try{localStorage.removeItem(GH_KEYS[k]);}catch(e){}});
+  document.getElementById('gh-token').value='';
+  refreshGuardarHistBtn();
+  toast('Se borr\u00f3 la conexi\u00f3n con GitHub de este navegador');
+}
+function refreshGuardarHistBtn(){
+  var btn=document.getElementById('btn-guardar-hist');
+  if(!btn)return;
+  btn.innerHTML=ghGet('token')?'&#128640; Publicar en GitHub':'&#128228; Guardar en historial';
+}
+function b64EncodeUnicode(str){return btoa(unescape(encodeURIComponent(str)));}
+function b64DecodeUnicode(str){return decodeURIComponent(escape(atob(str)));}
+async function ghApiGetFile(path){
+  var owner=ghGet('owner'),repo=ghGet('repo'),branch=ghGet('branch')||'main',token=ghGet('token');
+  var url='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path+'?ref='+encodeURIComponent(branch);
+  var r=await fetch(url,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}});
+  if(r.status===404)return null;
+  if(!r.ok){var t='';try{t=(await r.json()).message||'';}catch(e){}throw new Error('No se pudo leer '+path+' (HTTP '+r.status+') '+t);}
+  return r.json();
+}
+async function ghApiPutFile(path,contentStr,sha,message){
+  var owner=ghGet('owner'),repo=ghGet('repo'),branch=ghGet('branch')||'main',token=ghGet('token');
+  var url='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path;
+  var body={message:message,content:b64EncodeUnicode(contentStr),branch:branch};
+  if(sha)body.sha=sha;
+  var r=await fetch(url,{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){var t='';try{t=(await r.json()).message||'';}catch(e){}throw new Error('Error al subir '+path+' (HTTP '+r.status+') '+t);}
+  return r.json();
+}
+async function publishToGithub(idBase,fname,payloadStr,indexStr){
+  var existingReport=await ghApiGetFile(fname);
+  await ghApiPutFile(fname,payloadStr,existingReport?existingReport.sha:null,'Reporte GPS: '+idBase);
+  var existingIndex=await ghApiGetFile('reportes/index.json');
+  await ghApiPutFile('reportes/index.json',indexStr,existingIndex?existingIndex.sha:null,'Actualiza index de reportes');
+}
+
+/* === INSTALAR APP (PWA) === */
+var deferredInstallPrompt=null;
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+}
+function isIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+function refreshInstallBtn(){
+  var btn=document.getElementById('install-btn');
+  if(!btn)return;
+  if(!SUPERVISOR_MODE||isStandalone()){btn.style.display='none';return;}
+  if(deferredInstallPrompt||isIOS()){btn.style.display='';}else{btn.style.display='none';}
+}
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  refreshInstallBtn();
+});
+window.addEventListener('appinstalled',function(){
+  deferredInstallPrompt=null;
+  refreshInstallBtn();
+  toast('\u2713 App instalada');
+});
+function handleInstallClick(){
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(function(){deferredInstallPrompt=null;refreshInstallBtn();});
+  }else if(isIOS()){
+    document.getElementById('installModal').classList.add('on');
+  }
+}
+function closeInstallModal(){document.getElementById('installModal').classList.remove('on');}
+
 function openTecModal(){document.getElementById('tecModal').classList.add('on')}
 function closeTecModal(){document.getElementById('tecModal').classList.remove('on')}
 async function addTecnico(){
@@ -693,6 +832,7 @@ function renderPanel(m){
     '<div class="sl">Alertas y eventos</div>'+
     '<div class="als" id="alc"></div>'+
     '<div id="obs-wrap"></div>'+
+    '<div id="notas-wrap"></div>'+
     mapH+dbts+
     '<div class="cc"><div class="ct">Paradas por d\u00eda</div>'+
       '<div class="lg"><div class="li"><div class="lsq" style="background:'+m.color+'55;border:1px solid '+m.color+'"></div>Total</div>'+
@@ -705,7 +845,7 @@ function renderPanel(m){
         (m.hC?'<th>Cliente</th>':'')+(m.hT?'<th>Trabajo</th>':'')+'<th>T. Inst/Reclamo</th><th>Obs.</th>'+
       '</tr></thead><tbody id="tb"></tbody></table></div></div>';
 
-  updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);
+  updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);
   if(hC)rMapa(m,'t');
   // Bar chart
   var barEl=document.getElementById('cbar');
@@ -754,6 +894,14 @@ function buildObs(m){
   var wrap=document.getElementById('obs-wrap');
   if(!wrap)return;
   var txt=m.obs_manual||'';
+  if(SUPERVISOR_MODE){
+    if(!txt){wrap.innerHTML='';return;}
+    wrap.innerHTML='<div class="obs-box">'+
+      '<div class="obs-box-hdr"><span class="obs-box-title">&#128221; Observaciones del m\u00f3vil</span></div>'+
+      '<div style="font-size:13px;color:var(--tx);white-space:pre-wrap;line-height:1.5">'+txt.replace(/</g,'&lt;')+'</div>'+
+    '</div>';
+    return;
+  }
   // Si no hay observaciones, mostrar igualmente para que puedan escribir
   wrap.innerHTML='<div class="obs-box">'+
     '<div class="obs-box-hdr">'+
@@ -764,6 +912,51 @@ function buildObs(m){
     '<textarea class="obs-ta" id="obs-ta" placeholder="Agreg\u00e1 observaciones sobre este m\u00f3vil (dejar en blanco para no mostrar)..." onblur="saveObs('+aM+')" oninput="clearObsMsg()">'+txt+'</textarea>'+
   '</div>';
   if(!txt)wrap.style.display='';
+}
+
+/* === NOTAS PARA EL SUPERVISOR (solo en modo supervisor) === */
+function buildNotas(m){
+  var wrap=document.getElementById('notas-wrap');
+  if(!wrap)return;
+  if(!SUPERVISOR_MODE){wrap.innerHTML='';return;}
+  var torreMsg=m.torre?
+    ('&#128225; Este m\u00f3vil reporta a la Torre de Control: <strong>'+m.torre+'</strong>. Ante una consulta urgente de ruta o tr\u00e1nsito, por favor comun\u00edquese primero con la torre correspondiente. Para cualquier otra consulta sobre este reporte, puede dejarla a continuaci\u00f3n.'):
+    ('Este m\u00f3vil no tiene Torre de Control asignada. Ante cualquier consulta sobre este reporte, por favor dir\u00edjase a Fabricio o al supervisor.');
+  wrap.innerHTML='<div class="obs-box">'+
+    '<div class="obs-box-hdr"><span class="obs-box-title">&#128221; \u00bfViste algo que haya que anotar?</span></div>'+
+    '<div style="font-size:12px;color:var(--tx2);margin-bottom:.6rem;line-height:1.5">'+torreMsg+'</div>'+
+    '<textarea class="obs-ta" id="nota-ta" placeholder="Escrib\u00ed ac\u00e1 lo que quieras dejar anotado sobre este m\u00f3vil..."></textarea>'+
+    '<div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">'+
+      '<button class="bo" onclick="enviarNotaWhatsapp()">&#128172; WhatsApp</button>'+
+      '<button class="bo" onclick="enviarNotaMail()">&#9993;&#65039; Mail</button>'+
+      '<button class="bo" onclick="copiarNota()">&#128203; Copiar</button>'+
+    '</div>'+
+  '</div>';
+}
+function notaTexto(){
+  var m=DATA[aM];
+  var ta=document.getElementById('nota-ta');
+  var txt=ta?ta.value.trim():'';
+  if(!txt){alert('Escrib\u00ed algo antes de enviar.');return null;}
+  var cab='Reporte GPS \u2014 '+m.label+' ('+(m.desde||'?')+' a '+(m.hasta||'?')+')'+(m.torre?' \u2014 Torre: '+m.torre:'');
+  return cab+'\n\n'+txt;
+}
+function enviarNotaWhatsapp(){
+  var t=notaTexto();if(!t)return;
+  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
+}
+function enviarNotaMail(){
+  var t=notaTexto();if(!t)return;
+  var m=DATA[aM];
+  window.location.href='mailto:?subject='+encodeURIComponent('Nota reporte GPS \u2014 '+m.label)+'&body='+encodeURIComponent(t);
+}
+function copiarNota(){
+  var t=notaTexto();if(!t)return;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){toast('\u2713 Nota copiada \u2014 peg\u00e1la donde quieras enviarla');}).catch(function(){alert('No se pudo copiar. Copiala manualmente:\n\n'+t);});
+  }else{
+    alert('Copiala manualmente:\n\n'+t);
+  }
 }
 
 function saveObs(movilIdx){
@@ -834,7 +1027,7 @@ function updKpis(m){
 function chDay(d,btn){
   aD=d;
   document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
-  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);
+  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);
   if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
 }
 
@@ -1013,13 +1206,20 @@ function openHistorial(){
   document.getElementById('dash').style.display='none';
   document.getElementById('hist').style.display='block';
   document.getElementById('hist-search').value='';
+  var backBtn=document.getElementById('hist-back-btn');
+  if(backBtn)backBtn.style.display=(SUPERVISOR_MODE&&!DATA.length)?'none':'';
+  refreshInstallBtn();
   if(!HIST_LOADED)loadHistIndex();
   else renderHistList('');
 }
 function closeHistorial(){
   document.getElementById('hist').style.display='none';
   if(DATA.length){document.getElementById('dash').style.display='block';}
-  else{document.getElementById('up').style.display='flex';}
+  else if(!SUPERVISOR_MODE){document.getElementById('up').style.display='flex';}
+}
+function backToSearch(){
+  document.getElementById('dash').style.display='none';
+  openHistorial();
 }
 function loadHistIndex(){
   var listEl=document.getElementById('hist-list');
@@ -1087,16 +1287,28 @@ async function exportToHistorial(){
     var idBase=(d0ord+'_a_'+d1ord+'_'+moviles.join('-')).replace(/[^a-zA-Z0-9_\-]/g,'');
     var fname='reportes/'+idBase+'.json';
     var payload={version:1,desde:d0,hasta:d1,moviles:moviles,data:DATA,gas:GAS,gc:GC,guardado:new Date().toISOString()};
-    downloadJSON(payload,idBase+'.json');
     var entry={id:idBase,desde:d0,hasta:d1,moviles:moviles,archivo:fname,subido:new Date().toLocaleDateString('es-AR')};
     var idx=(HIST_INDEX||[]).filter(function(e){return e.id!==idBase});
     idx.push(entry);
     idx.sort(function(a,b){return parseFechaOrd(b.hasta)-parseFechaOrd(a.hasta)});
     HIST_INDEX=idx;
+
+    if(ghGet('token')){
+      ld(true,'Publicando directo en GitHub...');
+      await publishToGithub(idBase,fname,JSON.stringify(payload),JSON.stringify(idx));
+      ld(false);
+      toast('\u2713 Publicado directo en GitHub \u2014 ya est\u00e1 disponible para los supervisores');
+      return;
+    }
+
+    downloadJSON(payload,idBase+'.json');
     setTimeout(function(){downloadJSON(idx,'index.json');},300);
     ld(false);
     toast('\u2713 Se descargaron 2 archivos \u2014 subilos a la carpeta reportes/ en GitHub');
-  }catch(e){ld(false);alert('Error: '+e.message);}
+  }catch(e){
+    ld(false);
+    alert('Error: '+e.message+'\n\nRevis\u00e1 el token/configuraci\u00f3n de GitHub (bot\u00f3n \u2699\ufe0f GitHub), o guardalo manual con Guardar sesi\u00f3n mientras tanto.');
+  }
 }
 function downloadJSON(obj,filename){
   var blob=new Blob([JSON.stringify(obj)],{type:'application/json'});
@@ -1174,6 +1386,19 @@ function resetDash(){dCharts();DATA=[];aM=0;aD='todos';document.getElementById('
 /* === AUTO-RENDER si es archivo exportado === */
 /*__PRELOAD__*/
 window.addEventListener('load',function(){
+  if(SUPERVISOR_MODE){
+    ['btn-tecnico','btn-gh-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
+      var el=document.getElementById(id);if(el)el.style.display='none';
+    });
+    var buscarOtro=document.getElementById('btn-buscar-otro');if(buscarOtro)buscarOtro.style.display='';
+    var histBtn=document.getElementById('btn-historial');if(histBtn)histBtn.style.display='none';
+    document.getElementById('up').style.display='none';
+  }
+  refreshInstallBtn();
+  refreshGuardarHistBtn();
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  }
   if(PRELOADED&&typeof DATA!=='undefined'&&DATA&&DATA.length>0){
     // Restaurar geocache si existe
     if(typeof GC2!=='undefined'&&GC2)Object.assign(GC,GC2);
@@ -1181,6 +1406,8 @@ window.addEventListener('load',function(){
     if(typeof GAS!=='undefined'&&GAS&&GAS.length>0){} // ya asignadas
     calcAl();
     render();
+  }else if(SUPERVISOR_MODE){
+    openHistorial();
   }
 });
 
