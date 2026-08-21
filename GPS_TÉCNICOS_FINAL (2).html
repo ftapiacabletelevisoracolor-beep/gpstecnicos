@@ -439,32 +439,37 @@ function handleFile(file){
 /* === PARSE HOJA === */
 function parseSheet(sheet,name,idx){
   var rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
-  if(rows.length<10)return null;
+  if(rows.length<12)return null;
   var mlab=sv(rows[1]&&rows[1][0]||name);
-  var t1r=sv(rows[2]&&rows[2][1]||'');
-  var t2r=sv(rows[3]&&rows[3][1]||'');
-  // Coordenadas manuales: col J (índice 9) formato "lat,lon" ej: "-34.617,-68.330"
-  var t1coords=parseCoords(sv(rows[2]&&rows[2][9]||''));
-  var t2coords=parseCoords(sv(rows[3]&&rows[3][9]||''));
-  var desde=fmtD(rows[4]&&rows[4][1]);
-  var hasta=fmtD(rows[5]&&rows[5][1]);
+  // Técnicos: hasta 4 (filas Excel 3 a 6 → índices 2 a 5). Se usan solo los que tengan nombre cargado.
+  var tecRaw=[],tecCoords=[];
+  for(var tr=2;tr<=5;tr++){
+    tecRaw.push(sv(rows[tr]&&rows[tr][1]||''));
+    tecCoords.push(parseCoords(sv(rows[tr]&&rows[tr][9]||'')));
+  }
+  var desde=fmtD(rows[6]&&rows[6][1]);
+  var hasta=fmtD(rows[7]&&rows[7][1]);
   // Torre de Control: fila 2, col J (índice 9)
   var torre=sv(rows[1]&&rows[1][9]||'');
   // Dedicado a: col K (índice 10)
   var dedicado=sv(rows[1]&&rows[1][10]||'');
-  // Observaciones fijas del móvil: fila 8 — buscar en varias columnas por si hay merge
+  // Observaciones fijas del móvil: fila 10 (índice 9) — buscar en varias columnas por si hay merge
   var obs_excel=(function(){
-    var row7=rows[7]||[];
-    for(var ci=0;ci<row7.length;ci++){var v=sv(row7[ci]);if(v&&v!=='OBSERVACIONES:')return v;}
+    var rowObs=rows[9]||[];
+    for(var ci=0;ci<rowObs.length;ci++){var v=sv(rowObs[ci]);if(v&&v!=='OBSERVACIONES:')return v;}
     return '';
   })();
-  var t1b=bTec(t1r), t2b=bTec(t2r);
   var tecs=[];
   // Coordenadas: 1) manual del Excel, 2) del DB (ya geocodificadas), 3) null (geocodificar)
-  if(t1r){var l1=t1coords[0]||( t1b&&t1b.lat)||null,o1=t1coords[1]||(t1b&&t1b.lon)||null;tecs.push({raw:t1r,nombre:t1b?(t1b.apellido+' '+t1b.nombre):t1r,dom:t1b?t1b.direccion:'',bq:t1b?t1b.busqueda:'',lat:l1,lon:o1,manualCoord:!!(t1coords[0]||(t1b&&t1b.lat))});}
-  if(t2r){var l2=t2coords[0]||(t2b&&t2b.lat)||null,o2=t2coords[1]||(t2b&&t2b.lon)||null;tecs.push({raw:t2r,nombre:t2b?(t2b.apellido+' '+t2b.nombre):t2r,dom:t2b?t2b.direccion:'',bq:t2b?t2b.busqueda:'',lat:l2,lon:o2,manualCoord:!!(t2coords[0]||(t2b&&t2b.lat))});}
-  // Headers en fila índice 8
-  var hdrs=rows[8]||[];
+  tecRaw.forEach(function(traw,i){
+    if(!traw)return;
+    var tb=bTec(traw);
+    var coords=tecCoords[i];
+    var lat=coords[0]||(tb&&tb.lat)||null,lon=coords[1]||(tb&&tb.lon)||null;
+    tecs.push({raw:traw,nombre:tb?(tb.apellido+' '+tb.nombre):traw,dom:tb?tb.direccion:'',bq:tb?tb.busqueda:'',lat:lat,lon:lon,manualCoord:!!(coords[0]||(tb&&tb.lat))});
+  });
+  // Headers en fila índice 10
+  var hdrs=rows[10]||[];
   var hi={};
   hdrs.forEach(function(h,i){if(h)hi[sv(h).trim().toLowerCase()]=i});
   // Búsqueda flexible de columnas
@@ -485,7 +490,7 @@ function parseSheet(sheet,name,idx){
     conf: fc2(['conformidad']),
   };
   var paradas=[];
-  for(var r=9;r<rows.length;r++){
+  for(var r=11;r<rows.length;r++){
     var row=rows[r];
     if(!row||!row.some(function(v){return v!==''&&v!==null&&v!==undefined}))continue;
     var ubic=sv(C.ubic>=0?row[C.ubic]:'');
@@ -748,11 +753,12 @@ function render(){
   var aok=flat(function(m){return m.paradas.filter(function(p){return p.trab==='SI'})});
   var at=flat(function(m){return m.paradas.filter(function(p){return p.trab&&p.trab!=='-'&&p.trab!==''})});
   var aspd=flat(function(m){return m.paradas.filter(function(p){return p.vmax>=100;});});
+  var trabTot=DATA.reduce(function(acc,m){var t=computeTrabajos(m,'todos');acc.ok+=t.ok;acc.total+=t.total;return acc;},{ok:0,total:0});
   sg('sg',
     kpi('M\u00f3viles',DATA.length,''),kpi('Paradas totales',aw.length,''),
     kpi('Paradas +1h',al.length,al.length>3?'wn':''),kpi('Alertas GPS',ag.length,ag.length>0?'dn':''),
     kpi('&#127968; Domicilio',ad.length,ad.length>0?'dm':''),kpi('&#9981; Gasolineras',agm.length,agm.length>0?'gs':''),
-    at.length>0?kpi('Trabajos OK',aok.length+'/'+at.length,'ok'):''
+    trabTot.total>0?kpi('Trabajos OK',trabTot.ok+'/'+trabTot.total,'ok'):''
   );
   document.getElementById('tabs').innerHTML=DATA.map(function(m,i){
     var dc=m.paradas.filter(function(p){return p.dA}).length;
@@ -1006,8 +1012,8 @@ function updKpis(m){
   var galsf=ps.filter(function(p){return p.gA&&p.gA.multi});
   var gasMinF=ps.filter(function(p){return p.gA}).reduce(function(a,p){return a+p.durMin},0);
   var spdF=ps.filter(function(p){return p.vmax>=100});
-  var okf=ps.filter(function(p){return p.trab==='SI'}).length;
-  var totf=ps.filter(function(p){return p.trab&&p.trab!=='-'&&p.trab!==''}).length;
+  var trabF=computeTrabajos(m,aD);
+  var okf=trabF.ok,totf=trabF.total;
   var kmf=Math.round(ps.reduce(function(a,p){return a+(p.dist||0)},0));
   var alF=getAl(m,aD).filter(function(a){return a.lv==='dn'||a.lv==='wn'}).length;
   var el=document.getElementById('kpi-row');
