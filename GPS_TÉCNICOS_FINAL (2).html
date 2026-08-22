@@ -824,21 +824,6 @@ function render(){
   var movStr=DATA.map(function(m){return m.label}).join(', ');
   document.getElementById('rtit').textContent='Reporte GPS \u2014 '+DATA.length+' m\u00f3viles';
   document.getElementById('rmet').textContent=DATA[0]?DATA[0].desde+' \u2192 '+DATA[0].hasta:'';
-  var aw=flat(function(m){return m.paradas.filter(function(p){return !p.isP&&!p.isPn})});
-  var al=aw.filter(function(p){return p.durMin>=LM});
-  var ag=flat(function(m){return getAl(m,'todos').filter(function(a){return a.lv==='dn'||a.lv==='wn'})});
-  var ad=flat(function(m){return m.paradas.filter(function(p){return p.dA})});
-  var agm=flat(function(m){return m.paradas.filter(function(p){return p.gA&&p.gA.multi})});
-  var aok=flat(function(m){return m.paradas.filter(function(p){return p.trab==='SI'})});
-  var at=flat(function(m){return m.paradas.filter(function(p){return p.trab&&p.trab!=='-'&&p.trab!==''})});
-  var aspd=flat(function(m){return m.paradas.filter(function(p){return p.vmax>=100;});});
-  var trabTot=DATA.reduce(function(acc,m){var t=computeTrabajos(m,'todos');acc.ok+=t.ok;acc.total+=t.total;return acc;},{ok:0,total:0});
-  sg('sg',
-    kpi('M\u00f3viles',DATA.length,''),kpi('Paradas totales',aw.length,''),
-    kpi('Paradas +1h',al.length,al.length>3?'wn':''),kpi('Alertas GPS',ag.length,ag.length>0?'dn':''),
-    kpi('&#127968; Domicilio',ad.length,ad.length>0?'dm':''),kpi('&#9981; Gasolineras',agm.length,agm.length>0?'gs':''),
-    trabTot.total>0?kpi('Trabajos OK',trabTot.ok+'/'+trabTot.total,'ok'):''
-  );
   document.getElementById('tabs').innerHTML=DATA.map(function(m,i){
     var dc=m.paradas.filter(function(p){return p.dA}).length;
     var gc=m.paradas.filter(function(p){return p.gA&&p.gA.multi}).length;
@@ -849,10 +834,27 @@ function render(){
   renderPanel(DATA[aM]);
 }
 
+/* === RESUMEN GENERAL — sigue al móvil seleccionado === */
+function renderResumen(m){
+  var aw=m.paradas.filter(function(p){return !p.isP&&!p.isPn});
+  var al=aw.filter(function(p){return p.durMin>=LM});
+  var ag=getAl(m,'todos').filter(function(a){return a.lv==='dn'||a.lv==='wn'});
+  var ad=m.paradas.filter(function(p){return p.dA});
+  var agm=m.paradas.filter(function(p){return p.gA&&p.gA.multi});
+  var trab=computeTrabajos(m,'todos');
+  sg('sg',
+    kpi('M\u00f3vil',m.label,''),kpi('Paradas totales',aw.length,''),
+    kpi('Paradas +1h',al.length,al.length>3?'wn':''),kpi('Alertas GPS',ag.length,ag.length>0?'dn':''),
+    kpi('&#127968; Domicilio',ad.length,ad.length>0?'dm':''),kpi('&#9981; Gasolineras',agm.length,agm.length>0?'gs':''),
+    trab.total>0?kpi('Trabajos OK',trab.ok+'/'+trab.total,'ok'):''
+  );
+}
+
 function sw(i){aM=i;aD='todos';document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
 
 /* === RENDER PANEL === */
 function renderPanel(m){
+  renderResumen(m);
   dCharts();
   var wk=m.paradas.filter(function(p){return !p.isP&&!p.isPn});
   var lg=wk.filter(function(p){return p.durMin>=LM});
