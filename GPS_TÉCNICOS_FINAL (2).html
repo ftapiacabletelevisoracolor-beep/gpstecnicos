@@ -210,7 +210,11 @@ tbody tr:last-child td{border-bottom:none}
       <div class="theme-sw" id="theme-sw-dash"></div>
       <button class="bg" id="install-btn" onclick="handleInstallClick()" style="display:none">&#128241; Instalar app</button>
       <button class="bo" id="btn-tecnico" onclick="openTecModal()">&#128101; Técnico</button>
+      <button class="bo" id="btn-importar-cruce" onclick="document.getElementById('fi-cruce').click()">&#128229; Importar cruce</button>
+      <input type="file" id="fi-cruce" accept=".csv" style="display:none" onchange="importarCruce(this.files[0])">
+      <button class="bo" id="btn-exportar-excel" onclick="exportarExcelCompleto()">&#128190; Exportar Excel</button>
       <button class="bo" id="btn-gh-config" onclick="openGhConfigModal()">&#9881;&#65039; GitHub</button>
+      <button class="bo" id="btn-nap-config" onclick="openNapConfigModal()">&#128273; NAP</button>
       <button class="bo" id="btn-historial" onclick="openHistorial()">&#128197; Historial</button>
       <button class="bo" id="btn-guardar-hist" onclick="exportToHistorial()">&#128228; Guardar en historial</button>
       <button class="bg" id="btn-guardar-sesion" onclick="guardarSesion()">&#128190; Guardar sesión</button>
@@ -260,6 +264,21 @@ tbody tr:last-child td{border-bottom:none}
     </div>
     <div class="modal-hint">
       &#191;C&#243;mo saco el token? En GitHub: foto de perfil (arriba a la derecha) &rarr; Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Fine-grained tokens &rarr; Generate new token. Eleg&#237; SOLO el repo <b>gpstecnicos</b> (no "todos los repos"), y en Permissions activ&#225; <b>Contents: Read and write</b>. Copiá el token generado y peg&#225;lo ac&#225; arriba — GitHub solo te lo muestra una vez.
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="napConfigModal">
+  <div class="modal-bx">
+    <div class="modal-hd"><h3>&#128273; Conexi&#243;n con base NAP</h3><button class="modal-x" onclick="closeNapConfigModal()">&#10005;</button></div>
+    <div style="font-size:12px;color:var(--tx2);line-height:1.6;margin-bottom:1rem">
+      Con esto, el buscador de cliente NAP funciona directo desde el dashboard. Se guarda solo en este navegador, nunca en el archivo — no lo completes en compus que no sean tuyas.
+    </div>
+    <div class="modal-fl"><label>URL del script (la de siempre, termina en /exec)</label><input id="nap-url" placeholder="https://script.google.com/macros/s/..."></div>
+    <div class="modal-fl"><label>Clave de acceso</label><input id="nap-pass" type="password" placeholder="NAP LLENAS"></div>
+    <div style="display:flex;gap:8px">
+      <button class="ubtn" style="flex:1" onclick="saveNapConfig()">Guardar conexión</button>
+      <button class="bo" onclick="clearNapConfig()">Borrar</button>
     </div>
   </div>
 </div>
@@ -478,6 +497,7 @@ function parseSheet(sheet,name,idx){
     n:    fc2(['n° parada','n parada','nro parada']),
     fec:  fc2(['fecha de parada']),
     hora: fc2(['hora']),
+    durc: fc2(['duración de conducción','duracion de conduccion']),
     dist: fc2(['distancia (km)','distancia']),
     durp: fc2(['duración de la parada','duracion de la parada']),
     ubic: fc2(['ubicación de parada','ubicacion de parada']),
@@ -510,6 +530,7 @@ function parseSheet(sheet,name,idx){
       fec:sv(C.fec>=0?row[C.fec]:''),
       hora:sv(C.hora>=0?row[C.hora]:''),
       durMin:durMin,instMin:instMin,
+      durCond:sv(C.durc>=0?row[C.durc]:''),
       loc:ubic,dist:parseFloat(row[C.dist])||0,vmax:parseFloat(row[C.vmax])||0,
       lat:lat,lon:lon,
       cli:sv(C.cli>=0?row[C.cli]:''),
@@ -598,6 +619,64 @@ function clearGhConfig(){
   refreshGuardarHistBtn();
   toast('Se borr\u00f3 la conexi\u00f3n con GitHub de este navegador');
 }
+
+/* === CONEXIÓN CON BASE NAP (buscar cliente por número) === */
+var NAP_KEYS={url:'ctc_nap_url',pass:'ctc_nap_pass'};
+function napGet(k){try{return localStorage.getItem(NAP_KEYS[k])||'';}catch(e){return '';}}
+function napSet(k,v){try{localStorage.setItem(NAP_KEYS[k],v);}catch(e){}}
+function openNapConfigModal(){
+  document.getElementById('nap-url').value=napGet('url')||'https://script.google.com/macros/s/AKfycbzmPcVWVMKedmPno_St6lNQqt6iX7ipIO-hTQyO7vXqIHuYLyvF8WMn_9YfhYRuK6EG/exec';
+  document.getElementById('nap-pass').value=napGet('pass');
+  document.getElementById('napConfigModal').classList.add('on');
+}
+function closeNapConfigModal(){document.getElementById('napConfigModal').classList.remove('on');}
+function saveNapConfig(){
+  napSet('url',document.getElementById('nap-url').value.trim());
+  napSet('pass',document.getElementById('nap-pass').value.trim());
+  closeNapConfigModal();
+  toast(napGet('pass')?'\u2713 Conectado con la base NAP':'Configuraci\u00f3n guardada');
+}
+function clearNapConfig(){
+  ['url','pass'].forEach(function(k){try{localStorage.removeItem(NAP_KEYS[k]);}catch(e){}});
+  document.getElementById('nap-pass').value='';
+  toast('Se borr\u00f3 la conexi\u00f3n con NAP de este navegador');
+}
+async function buscarClienteNAP(){
+  var nro=document.getElementById('nap-nro').value.trim();
+  var out=document.getElementById('nap-resultado');
+  if(!nro){out.innerHTML='';return;}
+  if(!napGet('pass')||!napGet('url')){
+    out.innerHTML='<span style="color:var(--wn)">Primero configur\u00e1 la conexi\u00f3n (bot\u00f3n \ud83d\udd11 NAP arriba).</span>';
+    return;
+  }
+  out.innerHTML='<span style="color:var(--tx3)">Buscando...</span>';
+  try{
+    var url=napGet('url')+'?pass='+encodeURIComponent(napGet('pass'))+'&accion=cliente&nro='+encodeURIComponent(nro);
+    var r=await fetch(url);
+    var j=await r.json();
+    if(!j.ok||!j.cliente){
+      out.innerHTML='<span style="color:var(--dn)">\u2717 '+(j.error==='cliente no encontrado'?'Cliente no encontrado en la base NAP.':'Error: '+(j.error||'desconocido'))+'</span>';
+      return;
+    }
+    var c=j.cliente;
+    var tieneCoords=c.lat!==null&&c.lat!==undefined&&c.lng!==null&&c.lng!==undefined;
+    out.innerHTML='<div style="background:var(--sf2);border-radius:var(--rs);padding:8px 10px">'+
+      '<div style="font-weight:600">'+(c.nombre||'(sin nombre)')+' <span style="color:var(--tx3);font-weight:400">#'+c.nro+'</span></div>'+
+      '<div style="color:var(--tx2);font-size:12px;margin-top:2px">'+(c.direccion||'sin direcci\u00f3n')+'</div>'+
+      (tieneCoords?'<div style="color:var(--tx3);font-size:11px;margin-top:2px">'+c.lat+', '+c.lng+'</div>':'<div style="color:var(--wn);font-size:11px;margin-top:2px">Sin coordenadas cargadas</div>')+
+      '</div>';
+    if(tieneCoords&&LM2){
+      var ic=L.divIcon({className:'',html:'<div style="width:24px;height:24px;border-radius:50%;background:#0891b2;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px">\ud83d\udd0d</div>',iconSize:[24,24],iconAnchor:[12,12]});
+      L.marker([c.lat,c.lng],{icon:ic,zIndexOffset:1000}).addTo(LM2).bindPopup('<b>'+c.nombre+'</b><br>#'+c.nro+'<br>'+c.direccion).openPopup();
+      LM2.setView([c.lat,c.lng],17);
+    }else if(tieneCoords&&!LM2){
+      out.innerHTML+='<div style="color:var(--tx3);font-size:11px;margin-top:4px">(Este m\u00f3vil no tiene mapa para mostrarlo \u2014 anot\u00e1 las coordenadas de arriba a mano)</div>';
+    }
+  }catch(e){
+    out.innerHTML='<span style="color:var(--dn)">\u2717 Error de conexi\u00f3n: '+e.message+'</span>';
+  }
+}
+
 function refreshGuardarHistBtn(){
   var btn=document.getElementById('btn-guardar-hist');
   if(!btn)return;
@@ -839,6 +918,7 @@ function renderPanel(m){
     '<div class="als" id="alc"></div>'+
     '<div id="obs-wrap"></div>'+
     '<div id="notas-wrap"></div>'+
+    '<div id="nap-search-wrap"></div>'+
     mapH+dbts+
     '<div class="cc"><div class="ct">Paradas por d\u00eda</div>'+
       '<div class="lg"><div class="li"><div class="lsq" style="background:'+m.color+'55;border:1px solid '+m.color+'"></div>Total</div>'+
@@ -851,7 +931,7 @@ function renderPanel(m){
         (m.hC?'<th>Cliente</th>':'')+(m.hT?'<th>Trabajo</th>':'')+'<th>T. Inst/Reclamo</th><th>Obs.</th>'+
       '</tr></thead><tbody id="tb"></tbody></table></div></div>';
 
-  updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);
+  updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();
   if(hC)rMapa(m,'t');
   // Bar chart
   var barEl=document.getElementById('cbar');
@@ -893,6 +973,21 @@ function updTrabCounter(m){
   if(t.total===0){el.innerHTML='';return;}
   el.innerHTML='<span style="display:inline-block;background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--tx)">'+
     m.label+' &mdash; Trabajos realizados: <span style="color:'+(t.ok===t.total?'var(--ok)':'var(--wn)')+'">'+t.ok+' de '+t.total+'</span></span>';
+}
+
+/* === BUSCADOR CLIENTE NAP (solo modo master) === */
+function buildNapSearch(){
+  var wrap=document.getElementById('nap-search-wrap');
+  if(!wrap)return;
+  if(SUPERVISOR_MODE){wrap.innerHTML='';return;}
+  wrap.innerHTML='<div class="obs-box">'+
+    '<div class="obs-box-hdr"><span class="obs-box-title">&#128269; Buscar cliente en base NAP</span></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<input id="nap-nro" placeholder="N\u00famero de cliente..." style="flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--sf2);color:var(--tx);font-family:var(--fn);font-size:13px;outline:none" onkeydown="if(event.key===\'Enter\'){event.preventDefault();buscarClienteNAP();}">'+
+      '<button class="bg" onclick="buscarClienteNAP()">Buscar</button>'+
+    '</div>'+
+    '<div id="nap-resultado" style="margin-top:.6rem;font-size:13px"></div>'+
+  '</div>';
 }
 
 /* === CUADRO DE OBSERVACIONES === */
@@ -1033,7 +1128,7 @@ function updKpis(m){
 function chDay(d,btn){
   aD=d;
   document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
-  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);
+  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();
   if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
 }
 
@@ -1324,6 +1419,116 @@ function downloadJSON(obj,filename){
   a.click();
 }
 
+/* === EXPORTAR EXCEL COMPLETO (con Clientes/Trabajo/Conformidad ya cargados) === */
+function fD2(m){if(!m)return'';var h=Math.floor(m/60),mm=m%60;return h>0?h+'h '+mm+'min':mm+'min';}
+function exportarExcelCompleto(){
+  if(!DATA.length){alert('Primero carg\u00e1 un reporte.');return;}
+  ld(true,'Generando Excel...');
+  setTimeout(function(){
+    try{
+      var wb=XLSX.utils.book_new();
+      var nombresUsados={};
+      DATA.forEach(function(m){
+        var aoa=[];
+        aoa.push(['Reporte detallado GPS']);
+        aoa.push([m.full||m.label,'','','','','','','','',(m.torre?'TORRE DE CONTROL: '+m.torre:''),(m.dedicado?'DEDICADO A: '+m.dedicado:'')]);
+        var tecLabels=['TÉCNICO 1:','TÉCNICO 2:','TÉCNICO 3:','TÉCNICO 4:'];
+        for(var ti=0;ti<4;ti++){
+          aoa.push([tecLabels[ti], m.tecs[ti]?m.tecs[ti].raw:'']);
+        }
+        aoa.push(['Desde',m.desde||'']);
+        aoa.push(['Hasta',m.hasta||'']);
+        aoa.push(['Unidad distancia','km']);
+        aoa.push(['OBSERVACIONES:', m.obs_manual||'']);
+        aoa.push(['N° Parada','Fecha de parada','Hora','Duración de conducción','Distancia (km)','Duración de la parada','Ubicación de Parada','Velocidad máxima','Latitud','Longitud','Clientes','¿Trabajo realizado?','Tiempo de Inst. / Reclamo','Conformidad']);
+        m.paradas.forEach(function(p){
+          aoa.push([p.n,p.fec,p.hora,p.durCond||'',p.dist,fD2(p.durMin),p.loc,p.vmax,p.lat||'',p.lon||'',p.cli||'',p.trab||'',fD2(p.instMin),p.obs||'']);
+        });
+        var ws=XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols']=[{wch:9},{wch:12},{wch:7},{wch:13},{wch:10},{wch:13},{wch:38},{wch:9},{wch:11},{wch:11},{wch:12},{wch:14},{wch:14},{wch:22}];
+        var baseName=(m.label||'Movil').replace(/[:\\/?*\[\]]/g,'').slice(0,28);
+        var sheetName=baseName;
+        var n=2;
+        while(nombresUsados[sheetName]){sheetName=baseName+'_'+n;n++;}
+        nombresUsados[sheetName]=true;
+        XLSX.utils.book_append_sheet(wb,ws,sheetName);
+      });
+      var hoy=new Date().toLocaleDateString('es-AR').replace(/\//g,'-');
+      XLSX.writeFile(wb,'Reporte GPS completo '+hoy+'.xlsx');
+      ld(false);
+      toast('\u2713 Excel generado y descargado');
+    }catch(e){
+      ld(false);
+      alert('Error al generar el Excel: '+e.message);
+    }
+  },200);
+}
+
+/* === IMPORTAR CRUCE (desde el Cruzador GPS × SIGA) === */
+function parseCSVCruce(text){
+  var lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(function(l){return l.trim();});
+  return lines.map(function(line){
+    var vals=[],cur='',inQ=false;
+    for(var i=0;i<line.length;i++){
+      var ch=line[i];
+      if(ch==='"'){
+        if(inQ&&line[i+1]==='"'){cur+='"';i++;}
+        else inQ=!inQ;
+      }else if(ch===';'&&!inQ){vals.push(cur);cur='';}
+      else cur+=ch;
+    }
+    vals.push(cur);
+    return vals;
+  });
+}
+function importarCruce(file){
+  if(!file)return;
+  if(!DATA.length){alert('Primero carg\u00e1 un reporte.');return;}
+  ld(true,'Leyendo cruce...');
+  var rd=new FileReader();
+  rd.onload=function(e){
+    try{
+      var rows=parseCSVCruce(e.target.result);
+      if(!rows.length){alert('El archivo est\u00e1 vac\u00edo.');ld(false);return;}
+      var hdr=rows[0].map(function(h){return h.trim().toLowerCase();});
+      function col(name){return hdr.indexOf(name.toLowerCase());}
+      var C={movil:col('M\u00f3vil'),fecha:col('Fecha'),hora:col('Hora'),estado:col('Estado'),nroCliente:col('Nro Cliente')};
+      if(C.movil<0||C.fecha<0||C.hora<0||C.estado<0){
+        alert('El CSV no tiene el formato esperado. Export\u00e1lo con el bot\u00f3n "Exportar CSV" del Cruzador GPS.');
+        ld(false);return;
+      }
+      var importados=0,sinCoincidencia=0,descartados=0;
+      for(var i=1;i<rows.length;i++){
+        var r=rows[i];if(!r||!r.length)continue;
+        var estado=(r[C.estado]||'').trim();
+        var nroCliente=C.nroCliente>=0?(r[C.nroCliente]||'').trim():'';
+        if(estado!=='Match'||!nroCliente){descartados++;continue;}
+        var movilRow=(r[C.movil]||'').trim();
+        var fechaRow=(r[C.fecha]||'').trim();
+        var horaRow=(r[C.hora]||'').trim();
+        var m=DATA.find(function(mv){return mv.label===movilRow;});
+        if(!m){sinCoincidencia++;continue;}
+        var p=m.paradas.find(function(pp){return pp.fec===fechaRow&&pp.hora===horaRow;});
+        if(!p){sinCoincidencia++;continue;}
+        p.cli=nroCliente;
+        importados++;
+      }
+      calcAl();
+      render();
+      ld(false);
+      var msg='\u2713 '+importados+' clientes importados';
+      if(sinCoincidencia)msg+=' \u2014 '+sinCoincidencia+' no encontraron parada en este reporte (revisar m\u00f3vil/fecha)';
+      if(descartados)msg+=' \u2014 '+descartados+' filas del cruce no eran "Match" (se ignoraron)';
+      toast(msg);
+      document.getElementById('fi-cruce').value='';
+    }catch(err){
+      ld(false);
+      alert('Error al leer el cruce: '+err.message);
+    }
+  };
+  rd.readAsText(file,'UTF-8');
+}
+
 function guardarSesion(){
   ld(true,'Guardando sesi\u00f3n...');
   setTimeout(function(){
@@ -1393,7 +1598,7 @@ function resetDash(){dCharts();DATA=[];aM=0;aD='todos';document.getElementById('
 /*__PRELOAD__*/
 window.addEventListener('load',function(){
   if(SUPERVISOR_MODE){
-    ['btn-tecnico','btn-gh-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
+    ['btn-tecnico','btn-importar-cruce','btn-exportar-excel','btn-gh-config','btn-nap-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     var buscarOtro=document.getElementById('btn-buscar-otro');if(buscarOtro)buscarOtro.style.display='';
