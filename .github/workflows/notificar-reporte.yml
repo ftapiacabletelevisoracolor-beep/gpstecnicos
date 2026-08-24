@@ -1,1 +1,29 @@
+name: Avisar por mail cuando se publica un reporte GPS
 
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'reportes/**'
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enviar mail de aviso
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "📡 Nuevo reporte GPS publicado - CTC"
+          to: ${{ secrets.MAIL_TO }}
+          from: "Sistema GPS CTC <${{ secrets.MAIL_USERNAME }}>"
+          body: |
+            Se publicó un reporte GPS nuevo o actualizado.
+
+            Entrá a ver los reportes acá:
+            https://ftapiacabletelevisoracolor-beep.github.io/gpstecnicos/GPS_T%C3%89CNICOS_FINAL%20(2).html?modo=supervisor
+
+            (Este mail se envía automáticamente cada vez que se sube o actualiza un archivo en la carpeta reportes/. Si tenés dudas, consultá con Fabricio.)
