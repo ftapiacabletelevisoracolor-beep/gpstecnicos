@@ -165,6 +165,10 @@ tbody tr:last-child td{border-bottom:none}
 .hist-search{width:100%;padding:11px 16px;border:1.5px solid var(--bd);border-radius:var(--r);font-family:var(--fn);font-size:14px;background:var(--sf);color:var(--tx);outline:none;margin-bottom:1.25rem}
 .hist-search:focus{border-color:var(--ac)}
 .hist-item{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rs);padding:12px 16px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,background .15s}
+.hist-item.visto{opacity:.6}
+.hist-check{font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--tx3);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.hist-check.on{background:#f0fdf4;border-color:#bbf7d0;color:#15803d;font-weight:600}
+.hist-check:hover{border-color:var(--ac)}
 .hist-item:hover{border-color:var(--ac);background:#eff6ff}
 [data-theme="dark"] .hist-item:hover{background:#1a2540}
 .hist-item-dates{font-family:var(--fm);font-size:12px;color:var(--ac);font-weight:500;margin-bottom:3px}
@@ -333,6 +337,14 @@ function loadExtraTecs(){
   }catch(e){}
 }
 loadExtraTecs();
+
+/* === DATALIST DE T\u00c9CNICOS (para el buscador de excepci\u00f3n por d\u00eda) === */
+function buildTecDatalist(){
+  var dl=document.getElementById('tecDBlist');
+  if(!dl){dl=document.createElement('datalist');dl.id='tecDBlist';document.body.appendChild(dl);}
+  dl.innerHTML=TECNICOS_DB.map(function(t){return '<option value="'+(t.apellido+' '+t.nombre)+'">';}).join('');
+}
+buildTecDatalist();
 
 /* === TEMA (claro / oscuro / sepia) === */
 var THEME_KEY='ctc_dash_theme';
@@ -539,7 +551,7 @@ function parseSheet(sheet,name,idx){
       isP:isP,isPn:isPn,dA:null,gA:null
     });
   }
-  return{id:name,label:name,full:mlab,tecs:tecs,desde:desde,hasta:hasta,torre:torre,dedicado:dedicado,obs_manual:obs_excel,color:CLR[idx%CLR.length],paradas:paradas,hC:C.cli>=0,hT:C.trab>=0,hI:C.inst>=0,hCoord:C.lat>=0&&C.lon>=0};
+  return{id:name,label:name,full:mlab,tecs:tecs,tecOverride:{},desde:desde,hasta:hasta,torre:torre,dedicado:dedicado,obs_manual:obs_excel,color:CLR[idx%CLR.length],paradas:paradas,hC:C.cli>=0,hT:C.trab>=0,hI:C.inst>=0,hCoord:C.lat>=0&&C.lon>=0};
 }
 
 /* === PARSEAR COORDENADAS MANUALES === */
@@ -758,6 +770,7 @@ async function addTecnico(){
   ld(false);
   var nuevo={apellido:apellido,nombre:nombre,apellido_nombre:apellido+' '+nombre,empresa:empresa,direccion:direccion,localidad:localidad,busqueda:busqueda,lat:res[0],lon:res[1]};
   TECNICOS_DB.push(nuevo);
+  buildTecDatalist();
   try{
     var extra=[];
     try{extra=JSON.parse(localStorage.getItem(TEC_EXTRA_KEY)||'[]');}catch(e){}
@@ -771,10 +784,12 @@ async function addTecnico(){
 /* === CALCULAR ALERTAS === */
 function calcAl(){
   DATA.forEach(function(m){
-    var tok=m.tecs.filter(function(t){return t.lat&&t.lon});
+    var tokDef=m.tecs.filter(function(t){return t.lat&&t.lon});
     m.paradas.forEach(function(p){
       p.dA=null;p.gA=null;
-      // Domicilio por proximidad GPS
+      // Domicilio por proximidad GPS \u2014 si ese d\u00eda hay t\u00e9cnico excepci\u00f3n cargado, se usa solo esa lista
+      var ov=m.tecOverride&&m.tecOverride[p.fec];
+      var tok=(ov&&ov.length)?ov.filter(function(t){return t.lat&&t.lon}):tokDef;
       if(p.lat&&p.lon){
         for(var i=0;i<tok.length;i++){
           var d=hav(p.lat,p.lon,tok[i].lat,tok[i].lon);
@@ -921,7 +936,7 @@ function renderPanel(m){
     '<div id="obs-wrap"></div>'+
     '<div id="notas-wrap"></div>'+
     '<div id="nap-search-wrap"></div>'+
-    mapH+dbts+
+    mapH+dbts+'<div id="tdw"></div>'+
     '<div class="cc"><div class="ct">Paradas por d\u00eda</div>'+
       '<div class="lg"><div class="li"><div class="lsq" style="background:'+m.color+'55;border:1px solid '+m.color+'"></div>Total</div>'+
       '<div class="li"><div class="lsq" style="background:#fef2f2;border:1px solid #dc2626"></div>+1h</div></div>'+
@@ -933,7 +948,7 @@ function renderPanel(m){
         (m.hC?'<th>Cliente</th>':'')+(m.hT?'<th>Trabajo</th>':'')+'<th>T. Inst/Reclamo</th><th>Obs.</th>'+
       '</tr></thead><tbody id="tb"></tbody></table></div></div>';
 
-  updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();
+  updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
   if(hC)rMapa(m,'t');
   // Bar chart
   var barEl=document.getElementById('cbar');
@@ -1130,8 +1145,61 @@ function updKpis(m){
 function chDay(d,btn){
   aD=d;
   document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
-  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();
+  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
   if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
+}
+
+/* === T\u00c9CNICO EXCEPCI\u00d3N POR D\u00cdA (cambio puntual de t\u00e9cnico en el mismo m\u00f3vil) === */
+function tecDiaHTML(m,dia){
+  if(dia==='todos')return'';
+  var ov=(m.tecOverride&&m.tecOverride[dia])||null;
+  var activos=(ov&&ov.length)?ov:m.tecs;
+  var esOv=!!(ov&&ov.length);
+  var chips=activos.map(function(t,i){
+    return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;background:var(--sf2);border:1px solid var(--bd);font-size:11px;color:var(--tx2)">'+(t.nombre||t.raw)+
+      (esOv?' <a href="javascript:void(0)" onclick="rmTecOv('+aM+',\''+dia+'\','+i+')" title="Quitar" style="color:#dc2626;font-weight:700;text-decoration:none">&times;</a>':'')+
+      '</span>';
+  }).join('');
+  return '<div style="margin:-4px 0 1.25rem;padding:9px 12px;background:var(--sf2);border:1px dashed var(--bd);border-radius:10px;font-size:12px">'+
+    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
+    '<span style="color:var(--tx3);white-space:nowrap">&#128101; T\u00e9cnico(s) el '+dia+':</span>'+
+    (chips||'<span style="color:var(--wn)">ninguno</span>')+
+    (esOv?' <span style="font-size:10px;color:#9333ea;font-weight:600">(excepci\u00f3n cargada)</span>':'')+
+    '</div>'+
+    '<div style="display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap">'+
+    '<input list="tecDBlist" id="tdinput" placeholder="\u00bfTrabaj\u00f3 otro t\u00e9cnico este d\u00eda? Escrib\u00ed su apellido..." style="flex:1;min-width:180px;padding:5px 9px;border:1px solid var(--bd);border-radius:6px;font-size:12px;background:var(--sf);color:var(--tx)">'+
+    '<button class="mfb" onclick="addTecOv('+aM+',\''+dia+'\')">+ Agregar</button>'+
+    (esOv?'<button class="mfb" onclick="resetTecOv('+aM+',\''+dia+'\')">Restablecer</button>':'')+
+    '</div></div>';
+}
+function updTecDia(m){var w=document.getElementById('tdw');if(w)w.innerHTML=tecDiaHTML(m,aD);}
+function addTecOv(mi,dia){
+  var inp=document.getElementById('tdinput');
+  var val=inp?inp.value.trim():'';
+  if(!val){toast('\u26a0 Escrib\u00ed o eleg\u00ed un t\u00e9cnico');return;}
+  var tb=bTec(val);
+  if(!tb){toast('\u26a0 T\u00e9cnico no encontrado en la base');return;}
+  var m=DATA[mi];
+  m.tecOverride=m.tecOverride||{};
+  if(!m.tecOverride[dia])m.tecOverride[dia]=m.tecs.map(function(t){return{nombre:t.nombre,dom:t.dom,lat:t.lat,lon:t.lon}});
+  var nom=tb.apellido+' '+tb.nombre;
+  if(m.tecOverride[dia].some(function(t){return t.nombre===nom})){toast('Ya est\u00e1 en la lista de ese d\u00eda');return;}
+  m.tecOverride[dia].push({nombre:nom,dom:tb.direccion,lat:tb.lat,lon:tb.lon});
+  calcAl();render();
+  toast('\u2713 '+nom+' agregado para el '+dia);
+}
+function rmTecOv(mi,dia,idx){
+  var m=DATA[mi];
+  if(m.tecOverride&&m.tecOverride[dia]){
+    m.tecOverride[dia].splice(idx,1);
+    if(!m.tecOverride[dia].length)delete m.tecOverride[dia];
+  }
+  calcAl();render();
+}
+function resetTecOv(mi,dia){
+  var m=DATA[mi];
+  if(m.tecOverride)delete m.tecOverride[dia];
+  calcAl();render();
 }
 
 /* === ALERTAS === */
@@ -1304,6 +1372,17 @@ function toggleMapExp(btn){
 
 /* === EXPORTAR (self-contained, sin API calls) === */
 /* === HISTORIAL DE REPORTES (lee reportes/index.json publicado en el mismo sitio) === */
+/* Marca "visto" por reporte, guardada en este navegador/dispositivo (cada supervisor tiene la suya) */
+var VISTOS_KEY='ctc_reportes_vistos_v1';
+function getVistos(){try{return JSON.parse(localStorage.getItem(VISTOS_KEY)||'{}');}catch(e){return{};}}
+function toggleVisto(id,ev){
+  if(ev)ev.stopPropagation();
+  if(!id)return;
+  var v=getVistos();
+  if(v[id])delete v[id];else v[id]=Date.now();
+  try{localStorage.setItem(VISTOS_KEY,JSON.stringify(v));}catch(e){}
+  renderHistList(document.getElementById('hist-search')?document.getElementById('hist-search').value:'');
+}
 function openHistorial(){
   document.getElementById('up').style.display='none';
   document.getElementById('dash').style.display='none';
@@ -1352,12 +1431,21 @@ function renderHistList(q){
     return hay.indexOf(q)>=0;
   }).sort(function(a,b){return parseFechaOrd(b.hasta)-parseFechaOrd(a.hasta)});
   if(!items.length){listEl.innerHTML='<div class="na" style="border:none">'+(HIST_INDEX.length?'Sin resultados para esa b\u00fasqueda.':'A\u00fan no hay reportes publicados en el historial.')+'</div>';return;}
-  listEl.innerHTML=items.map(function(e){
-    return '<div class="hist-item" onclick="loadHistReport(\''+(e.archivo||'').replace(/'/g,"\\'")+'\')">'+
+  var vistos=getVistos();
+  var pend=items.filter(function(e){return !vistos[e.id];}).length;
+  var cntHtml='<div style="font-size:12px;color:var(--tx3);margin-bottom:10px">'+
+    (pend>0?'<b style="color:var(--dn,#dc2626)">'+pend+' sin ver</b> de '+items.length+' reportes':'\u2713 Ya viste los '+items.length+' reportes')+'</div>';
+  listEl.innerHTML=cntHtml+items.map(function(e){
+    var v=!!vistos[e.id];
+    return '<div class="hist-item'+(v?' visto':'')+'" onclick="loadHistReport(\''+(e.archivo||'').replace(/'/g,"\\'")+'\')">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'+
+      '<div>'+
       '<div class="hist-item-dates">'+(e.desde||'?')+' \u2192 '+(e.hasta||'?')+'</div>'+
       '<div class="hist-item-movs">'+(e.moviles||[]).join(' &middot; ')+'</div>'+
       '<div class="hist-item-meta">Publicado '+(e.subido||'')+'</div>'+
-    '</div>';
+      '</div>'+
+      '<button class="hist-check'+(v?' on':'')+'" onclick="toggleVisto(\''+(e.id||'').replace(/'/g,"\\'")+'\',event)" title="'+(v?'Marcar como no visto':'Marcar como visto')+'">'+(v?'\u2713 Visto':'Marcar visto')+'</button>'+
+      '</div></div>';
   }).join('');
 }
 function loadHistReport(path){
@@ -1368,6 +1456,9 @@ function loadHistReport(path){
     if(j.gc)Object.assign(GC,j.gc);
     aD='todos';aM=0;
     calcAl();
+    // marca autom\u00e1ticamente como visto al abrirlo
+    var idBase=path.replace(/^reportes\//,'').replace(/\.json$/,'');
+    var v=getVistos();if(!v[idBase]){v[idBase]=Date.now();try{localStorage.setItem(VISTOS_KEY,JSON.stringify(v));}catch(e){}}
     document.getElementById('hist').style.display='none';
     render();
     ld(false);
