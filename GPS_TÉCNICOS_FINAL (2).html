@@ -1435,15 +1435,17 @@ function renderHistList(q){
   var pend=items.filter(function(e){return !vistos[e.id];}).length;
   var cntHtml='<div style="font-size:12px;color:var(--tx3);margin-bottom:10px">'+
     (pend>0?'<b style="color:var(--dn,#dc2626)">'+pend+' sin ver</b> de '+items.length+' reportes':'\u2713 Ya viste los '+items.length+' reportes')+'</div>';
-  listEl.innerHTML=cntHtml+items.map(function(e){
+  listEl.innerHTML=cntHtml+items.map(function(e,idx){
     var v=!!vistos[e.id];
     return '<div class="hist-item'+(v?' visto':'')+'" onclick="loadHistReport(\''+(e.archivo||'').replace(/'/g,"\\'")+'\')">'+
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'+
+      '<div style="display:flex;gap:10px;align-items:flex-start">'+
+      '<div style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--sf2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--tx3);margin-top:1px">'+(idx+1)+'</div>'+
       '<div>'+
       '<div class="hist-item-dates">'+(e.desde||'?')+' \u2192 '+(e.hasta||'?')+'</div>'+
       '<div class="hist-item-movs">'+(e.moviles||[]).join(' &middot; ')+'</div>'+
       '<div class="hist-item-meta">Publicado '+(e.subido||'')+'</div>'+
-      '</div>'+
+      '</div></div>'+
       '<button class="hist-check'+(v?' on':'')+'" onclick="toggleVisto(\''+(e.id||'').replace(/'/g,"\\'")+'\',event)" title="'+(v?'Marcar como no visto':'Marcar como visto')+'">'+(v?'\u2713 Visto':'Marcar visto')+'</button>'+
       '</div></div>';
   }).join('');
