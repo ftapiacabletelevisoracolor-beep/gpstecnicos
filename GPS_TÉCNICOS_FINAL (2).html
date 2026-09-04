@@ -230,6 +230,10 @@ tbody tr:last-child td{border-bottom:none}
   <div class="main">
     <div class="sl">Resumen general</div>
     <div class="sg" id="sg"></div>
+    <div class="ts" id="cmp-wrap" style="display:none">
+      <div class="th"><div class="tt">Comparativa de m&#243;viles</div><div style="font-size:11px;color:var(--tx3)">Toc&aacute; una fila para abrir ese m&#243;vil</div></div>
+      <div class="tw"><table><thead><tr><th>M&#243;vil</th><th>Paradas</th><th>Km totales</th><th>Trabajos OK</th><th>Km / trabajo</th></tr></thead><tbody id="cmp-tbl"></tbody></table></div>
+    </div>
     <div class="sl">M&#243;viles</div>
     <div class="tabs" id="tabs"></div>
     <div id="panel"></div>
@@ -838,7 +842,8 @@ function render(){
   document.getElementById('dash').style.display='block';
   var movStr=DATA.map(function(m){return m.label}).join(', ');
   document.getElementById('rtit').textContent='Reporte GPS \u2014 '+DATA.length+' m\u00f3viles';
-  document.getElementById('rmet').textContent=DATA[0]?DATA[0].desde+' \u2192 '+DATA[0].hasta:'';
+  var kmFlota=Math.round(DATA.reduce(function(a,m){return a+m.paradas.reduce(function(b,p){return b+(p.dist||0)},0)},0));
+  document.getElementById('rmet').textContent=(DATA[0]?DATA[0].desde+' \u2192 '+DATA[0].hasta:'')+(kmFlota>0?' \u00b7 '+kmFlota.toLocaleString('es-AR')+' km totales (flota)':'');
   document.getElementById('tabs').innerHTML=DATA.map(function(m,i){
     var dc=m.paradas.filter(function(p){return p.dA}).length;
     var gc=m.paradas.filter(function(p){return p.gA&&p.gA.multi}).length;
@@ -847,6 +852,35 @@ function render(){
     return '<button class="tab '+(i===aM?'on':'')+'" onclick="sw('+i+')">'+'<span class="tdot" style="background:'+m.color+'"></span>'+m.label+bG+'</button>';
   }).join('');
   renderPanel(DATA[aM]);
+  renderComparativa();
+}
+
+/* === COMPARATIVA DE M\u00d3VILES (km, paradas, trabajos OK y km/trabajo) === */
+function renderComparativa(){
+  var wrap=document.getElementById('cmp-wrap'),tb=document.getElementById('cmp-tbl');
+  if(!wrap||!tb)return;
+  if(DATA.length<2){wrap.style.display='none';return;}
+  wrap.style.display='';
+  var filas=DATA.map(function(m,i){
+    var km=Math.round(m.paradas.reduce(function(a,p){return a+(p.dist||0)},0));
+    var pTot=m.paradas.filter(function(p){return !p.isP&&!p.isPn}).length;
+    var trab=computeTrabajos(m,'todos');
+    var eff=trab.ok>0?(km/trab.ok):null;
+    return{i:i,m:m,km:km,pTot:pTot,trab:trab,eff:eff};
+  });
+  var effVals=filas.map(function(f){return f.eff}).filter(function(v){return v!==null});
+  var effProm=effVals.length?effVals.reduce(function(a,v){return a+v},0)/effVals.length:0;
+  tb.innerHTML=filas.map(function(f){
+    var effTxt=f.eff===null?'\u2014':f.eff.toLocaleString('es-AR',{maximumFractionDigits:1})+' km';
+    var effAlto=f.eff!==null&&effProm>0&&f.eff>effProm*1.4;
+    return '<tr onclick="sw('+f.i+')" style="cursor:pointer">'+
+      '<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+f.m.color+';margin-right:6px;vertical-align:middle"></span>'+f.m.label+'</td>'+
+      '<td>'+f.pTot+'</td>'+
+      '<td>'+f.km.toLocaleString('es-AR')+' km</td>'+
+      '<td>'+(f.trab.total>0?f.trab.ok+'/'+f.trab.total:'\u2014')+'</td>'+
+      '<td style="'+(effAlto?'color:var(--wn);font-weight:600':'')+'">'+effTxt+(effAlto?' &#9888;':'')+'</td>'+
+      '</tr>';
+  }).join('');
 }
 
 /* === RESUMEN GENERAL — sigue al móvil seleccionado === */
@@ -857,8 +891,9 @@ function renderResumen(m){
   var ad=m.paradas.filter(function(p){return p.dA});
   var agm=m.paradas.filter(function(p){return p.gA&&p.gA.multi});
   var trab=computeTrabajos(m,'todos');
+  var kmTot=Math.round(m.paradas.reduce(function(a,p){return a+(p.dist||0)},0));
   sg('sg',
-    kpi('M\u00f3vil',m.label,''),kpi('Paradas totales',aw.length,''),
+    kpi('M\u00f3vil',m.label,''),kpi('Paradas totales',aw.length,''),kpi('Km totales',kmTot.toLocaleString('es-AR'),''),
     kpi('Paradas +1h',al.length,al.length>3?'wn':''),kpi('Alertas GPS',ag.length,ag.length>0?'dn':''),
     kpi('&#127968; Domicilio',ad.length,ad.length>0?'dm':''),kpi('&#9981; Gasolineras',agm.length,agm.length>0?'gs':''),
     trab.total>0?kpi('Trabajos OK',trab.ok+'/'+trab.total,'ok'):''
@@ -948,7 +983,7 @@ function renderPanel(m){
         (m.hC?'<th>Cliente</th>':'')+(m.hT?'<th>Trabajo</th>':'')+'<th>T. Inst/Reclamo</th><th>Obs.</th>'+
       '</tr></thead><tbody id="tb"></tbody></table></div></div>';
 
-  updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
+  updKpis(m);updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
   if(hC)rMapa(m,'t');
   // Bar chart
   var barEl=document.getElementById('cbar');
