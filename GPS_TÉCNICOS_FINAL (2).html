@@ -216,6 +216,8 @@ tbody tr:last-child td{border-bottom:none}
       <button class="bo" id="btn-tecnico" onclick="openTecModal()">&#128101; Técnico</button>
       <button class="bo" id="btn-importar-cruce" onclick="document.getElementById('fi-cruce').click()">&#128229; Importar cruce</button>
       <input type="file" id="fi-cruce" accept=".csv" style="display:none" onchange="importarCruce(this.files[0])">
+      <button class="bo" id="btn-importar-rutas" onclick="document.getElementById('fi-rutas').click()">&#128506;&#65039; Importar rutas GPS</button>
+      <input type="file" id="fi-rutas" accept=".json" style="display:none" onchange="importarRutasGPS(this.files[0])">
       <button class="bo" id="btn-exportar-excel" onclick="exportarExcelCompleto()">&#128190; Exportar Excel</button>
       <button class="bo" id="btn-gh-config" onclick="openGhConfigModal()">&#9881;&#65039; GitHub</button>
       <button class="bo" id="btn-nap-config" onclick="openNapConfigModal()">&#128273; NAP</button>
@@ -324,6 +326,8 @@ var LM=60,VM=120,DM=100,GM=50;
 var PKW=['rafael ruiz daudet','proa'];
 var CLR=['#2563eb','#16a34a','#d97706','#7c3aed','#dc2626','#0891b2','#db2777','#b45309'];
 var DATA=[],aM=0,aD='todos',CI={},LM2=null,GAS=[];
+var RUTAS_KEY='ctc_rutas_gps_v1';
+var RUTAS_GPS=(function(){try{return JSON.parse(localStorage.getItem(RUTAS_KEY)||'{}');}catch(e){return{};}})();
 var GC={};
 var PRELOADED=false;
 var HIST_INDEX=[],HIST_LOADED=false;
@@ -1368,7 +1372,20 @@ function rMapa(m,f){
       }
     });
   }
-  if(f==='t'&&ps.length>1)L.polyline(ps.map(function(p){return[p.lat,p.lon]}),{color:m.color,weight:2.5,opacity:.4,dashArray:'6,4'}).addTo(LM2);
+  if(f==='t'){
+    var rutaMovil=rutaParaMovil(m);
+    var porDia={};
+    ps.forEach(function(p){(porDia[p.fec]=porDia[p.fec]||[]).push(p);});
+    Object.keys(porDia).forEach(function(dia){
+      var pts=porDia[dia];
+      var real=rutaMovil&&rutaMovil[dia];
+      if(real&&real.length>1){
+        L.polyline(real,{color:m.color,weight:3,opacity:.75}).addTo(LM2).bindPopup('Recorrido real registrado por GPS \u2014 '+dia);
+      }else if(pts.length>1){
+        L.polyline(pts.map(function(p){return[p.lat,p.lon];}),{color:m.color,weight:2.5,opacity:.4,dashArray:'6,4'}).addTo(LM2);
+      }
+    });
+  }
   ps.forEach(function(p){
     var ia=aSet[p.loc]||p.durMin>=VM;var il=p.durMin>=LM&&!p.isP&&!p.isPn;
     var specialCol=p.dA?'#9333ea':p.gA?'#ea580c':p.vmax>=100?'#e11d48':p.isP?'#6b6760':ia?'#dc2626':il?'#d97706':null;
@@ -1613,6 +1630,36 @@ function parseCSVCruce(text){
     return vals;
   });
 }
+function rutaParaMovil(m){
+  var key=Object.keys(RUTAS_GPS).find(function(k){return m.label.indexOf(k)===0;});
+  return key?RUTAS_GPS[key]:null;
+}
+function importarRutasGPS(file){
+  if(!file)return;
+  ld(true,'Leyendo rutas GPS...');
+  var rd=new FileReader();
+  rd.onload=function(e){
+    try{
+      var data=JSON.parse(e.target.result);
+      var moviles=Object.keys(data);
+      if(!moviles.length){alert('El archivo no tiene datos de rutas.');ld(false);return;}
+      var totalDias=0;
+      moviles.forEach(function(mov){
+        RUTAS_GPS[mov]=Object.assign(RUTAS_GPS[mov]||{},data[mov]);
+        totalDias+=Object.keys(data[mov]).length;
+      });
+      try{localStorage.setItem(RUTAS_KEY,JSON.stringify(RUTAS_GPS));}catch(e2){}
+      render();
+      ld(false);
+      toast('\u2713 Rutas importadas: '+moviles.length+' m\u00f3vil(es), '+totalDias+' d\u00eda(s)');
+      document.getElementById('fi-rutas').value='';
+    }catch(err){
+      ld(false);
+      alert('Error al leer el archivo de rutas: '+err.message);
+    }
+  };
+  rd.readAsText(file);
+}
 function importarCruce(file){
   if(!file)return;
   if(!DATA.length){alert('Primero carg\u00e1 un reporte.');return;}
@@ -1730,7 +1777,7 @@ function resetDash(){dCharts();DATA=[];aM=0;aD='todos';document.getElementById('
 /*__PRELOAD__*/
 window.addEventListener('load',function(){
   if(SUPERVISOR_MODE){
-    ['btn-tecnico','btn-importar-cruce','btn-exportar-excel','btn-gh-config','btn-nap-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
+    ['btn-tecnico','btn-importar-cruce','btn-importar-rutas','btn-exportar-excel','btn-gh-config','btn-nap-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     var buscarOtro=document.getElementById('btn-buscar-otro');if(buscarOtro)buscarOtro.style.display='';
