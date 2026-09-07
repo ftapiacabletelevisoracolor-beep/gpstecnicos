@@ -17,6 +17,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.css"/>
 <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
+<script src="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
 <style>
 .leaflet-bar a{color:#1a1917!important}
 .geosearch form{border-radius:6px!important}
@@ -115,6 +116,8 @@ thead th{text-align:left;padding:8px 10px;color:var(--tx3);font-weight:500;borde
 tbody tr:hover{background:var(--sf2)}
 tbody tr.rp td{color:var(--tx3)}
 tbody tr.rd{background:#fdf4ff}tbody tr.rg{background:#fff7ed}
+tbody tr.row-sel td{background:#fef9c3!important;box-shadow:inset 3px 0 0 #d97706}
+tbody tr.row-sel:hover td{background:#fef08a!important}
 tbody tr.rspd{background:#fff1f2}
 tbody tr.rcr{background:#fdf2f8}
 tbody td{padding:8px 10px;border-bottom:1px solid var(--bd);color:var(--tx);vertical-align:top}
@@ -326,6 +329,8 @@ var LM=60,VM=120,DM=100,GM=50;
 var PKW=['rafael ruiz daudet','proa'];
 var CLR=['#2563eb','#16a34a','#d97706','#7c3aed','#dc2626','#0891b2','#db2777','#b45309'];
 var DATA=[],aM=0,aD='todos',CI={},LM2=null,GAS=[];
+var SEL_PARADAS=new Set(); // índices (en m.paradas) de las paradas clickeadas para resaltar en el mapa
+var MAPA_FILTRO_ACTUAL='t';
 var RUTAS_KEY='ctc_rutas_gps_v1';
 var RUTAS_GPS=(function(){try{return JSON.parse(localStorage.getItem(RUTAS_KEY)||'{}');}catch(e){return{};}})();
 var GC={};
@@ -904,7 +909,7 @@ function renderResumen(m){
   );
 }
 
-function sw(i){aM=i;aD='todos';document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
+function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
 
 /* === RENDER PANEL === */
 function renderPanel(m){
@@ -1264,7 +1269,7 @@ function updAl(m){
 /* === TABLA === */
 function updTbl(m){
   var ps=pFilt(m),tb=document.getElementById('tb'),tc=document.getElementById('tc');if(!tb)return;
-  if(tc)tc.textContent=ps.length+' registros';
+  if(tc)tc.textContent=ps.length+' registros'+(SEL_PARADAS.size?' \u2014 '+SEL_PARADAS.size+' seleccionada(s)':'');
   tb.innerHTML=ps.map(function(p){
     var il=!p.isP&&!p.isPn&&p.durMin>=LM;
     var db2=p.isPn?'<span class="bd bdn2">pernocte</span>':il?'<span class="bd '+(p.durMin>=VM?'bdn':'bdw')+'">'+fD(p.durMin)+'</span>':fD(p.durMin);
@@ -1273,8 +1278,10 @@ function updTbl(m){
     var dm=p.dA?'<span class="bd bdm">&#127968; '+p.dA.dist+'m</span>':'';
     var gm=p.gA?'<span class="bd '+(p.gA.multi?'bdgm':'bdg')+'">&#9981;'+(p.gA.multi?' x2+':'')+' '+fD(p.durMin)+'</span>':'';
     var spdb=p.vmax>=100?'<span class="bd" style="background:#fff1f2;color:#e11d48">&#128680; '+p.vmax+' km/h</span>':'';
-    var rc=p.isP?'rp':p.dA?'rd':p.gA?'rg':p.vmax>=100?'rspd':'';
-    return '<tr class="'+rc+'">'+
+    var pidx=m.paradas.indexOf(p);
+    var sel=SEL_PARADAS.has(pidx);
+    var rc=(p.isP?'rp':p.dA?'rd':p.gA?'rg':p.vmax>=100?'rspd':'')+(sel?' row-sel':'');
+    return '<tr class="'+rc+'" data-pidx="'+pidx+'" onclick="toggleSelParada('+pidx+')" style="cursor:pointer" title="Click para marcar esta parada en el mapa">'+
       '<td style="white-space:nowrap;color:var(--tx2)">'+p.fec+'</td>'+
       '<td style="white-space:nowrap;font-family:var(--fm);font-size:11px">'+p.hora+'</td>'+
       '<td style="color:var(--tx3);text-align:center">'+p.n+'</td>'+
@@ -1286,6 +1293,11 @@ function updTbl(m){
       '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap">'+(p.instMin>0?fD(p.instMin):'\u2014')+'</td>'+
       '<td>'+ob+'</td></tr>';
   }).join('');
+}
+function toggleSelParada(pidx){
+  if(SEL_PARADAS.has(pidx))SEL_PARADAS.delete(pidx);else SEL_PARADAS.add(pidx);
+  updTbl(DATA[aM]);
+  rMapa(DATA[aM],MAPA_FILTRO_ACTUAL);
 }
 
 
@@ -1379,10 +1391,14 @@ function rMapa(m,f){
     Object.keys(porDia).forEach(function(dia){
       var pts=porDia[dia];
       var real=rutaMovil&&rutaMovil[dia];
+      var linea=null;
       if(real&&real.length>1){
-        L.polyline(real,{color:m.color,weight:3,opacity:.75}).addTo(LM2).bindPopup('Recorrido real registrado por GPS \u2014 '+dia);
+        linea=L.polyline(real,{color:m.color,weight:3,opacity:.75}).addTo(LM2).bindPopup('Recorrido real registrado por GPS \u2014 '+dia);
       }else if(pts.length>1){
-        L.polyline(pts.map(function(p){return[p.lat,p.lon];}),{color:m.color,weight:2.5,opacity:.4,dashArray:'6,4'}).addTo(LM2);
+        linea=L.polyline(pts.map(function(p){return[p.lat,p.lon];}),{color:m.color,weight:2.5,opacity:.4,dashArray:'6,4'}).addTo(LM2);
+      }
+      if(linea&&typeof L.polylineDecorator!=='undefined'){
+        L.polylineDecorator(linea,{patterns:[{offset:'8%',repeat:'9%',symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:m.color,weight:2,opacity:.9}})}]}).addTo(LM2);
       }
     });
   }
@@ -1390,12 +1406,15 @@ function rMapa(m,f){
     var ia=aSet[p.loc]||p.durMin>=VM;var il=p.durMin>=LM&&!p.isP&&!p.isPn;
     var specialCol=p.dA?'#9333ea':p.gA?'#ea580c':p.vmax>=100?'#e11d48':p.isP?'#6b6760':ia?'#dc2626':il?'#d97706':null;
     var col=specialCol||getDayColor(p.fec,DATA[aM]);
-    var sz=p.dA||ia?22:il||p.gA?18:16;
-    var ic=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:'+(sz>16?'10':'9')+'px;font-weight:700;font-family:sans-serif">'+(p.n||'')+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+    var pidx=m.paradas.indexOf(p);
+    var sel=SEL_PARADAS.has(pidx);
+    var sz=(p.dA||ia?22:il||p.gA?18:16)+(sel?6:0);
+    var ring=sel?'outline:3px solid #facc15;outline-offset:2px;':'';
+    var ic=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2.5px solid #fff;'+ring+'box-shadow:0 1px 5px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:'+(sz>16?'10':'9')+'px;font-weight:700;font-family:sans-serif">'+(p.n||'')+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
     var di=p.dA?'<div style="margin-top:6px;padding:4px 6px;background:#fdf4ff;border-radius:4px;font-size:11px;color:#9333ea">&#127968; A '+p.dA.dist+'m del domicilio de '+p.dA.tec+'</div>':'';
     var gi=p.gA?'<div style="margin-top:6px;padding:4px 6px;background:#fff7ed;border-radius:4px;font-size:11px;color:#ea580c">&#9981; '+p.gA.nombre+(p.gA.multi?' \u2014 MULTIVISITA':'')+' \u2014 '+fD(p.durMin)+'</div>':'';
     var oi=p.obs&&p.obs!=='OK'?'<div style="margin-top:6px;padding:4px 6px;background:#fef2f2;border-radius:4px;font-size:11px;color:#dc2626">'+p.obs+'</div>':'';
-    L.marker([p.lat,p.lon],{icon:ic}).addTo(LM2).bindPopup(
+    var mk=L.marker([p.lat,p.lon],{icon:ic,zIndexOffset:sel?1000:0}).addTo(LM2).bindPopup(
       '<div style="font-family:sans-serif;font-size:12px;min-width:195px">'+
       '<div style="font-weight:600;margin-bottom:4px">'+p.fec+' '+p.hora+' \u2014 Parada '+p.n+'</div>'+
       '<div style="color:#6b6760;font-size:11px;margin-bottom:6px">'+p.loc+'</div>'+
@@ -1407,11 +1426,15 @@ function rMapa(m,f){
         (p.cli?'<span style="color:#9c9890">Cliente</span><span>'+p.cli+'</span>':'')+
         (p.trab?'<span style="color:#9c9890">Trabajo</span><span>'+p.trab+'</span>':'')+
       '</div>'+di+gi+oi+'</div>');
+    mk.on('click',function(){toggleSelParada(pidx);});
     bds.push([p.lat,p.lon]);
   });
-  if(bds.length)LM2.fitBounds(bds,{padding:[35,35]});
+  var selBds=[];
+  ps.forEach(function(p){if(SEL_PARADAS.has(m.paradas.indexOf(p)))selBds.push([p.lat,p.lon]);});
+  if(selBds.length)LM2.fitBounds(selBds,{padding:[60,60],maxZoom:16});
+  else if(bds.length)LM2.fitBounds(bds,{padding:[35,35]});
 }
-function fm(f,btn){document.querySelectorAll('.mfb').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');rMapa(DATA[aM],f);}
+function fm(f,btn){document.querySelectorAll('.mfb').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');MAPA_FILTRO_ACTUAL=f;rMapa(DATA[aM],f);}
 
 function toggleMapExp(btn){
   var mc=btn.closest('.mc');
