@@ -266,12 +266,25 @@ tbody tr:last-child td{border-bottom:none}
   <div class="modal-bx">
     <div class="modal-hd"><h3>&#128204; Completar parada</h3><button class="modal-x" onclick="closeParadaEditModal()">&#10005;</button></div>
     <div id="parada-edit-info" style="font-size:12px;color:var(--tx2);line-height:1.6;margin-bottom:1rem"></div>
-    <div class="modal-fl"><label>Cliente (n&#250;mero, nombre, o "Estaci&#243;n de servicio")</label><input id="pe-cliente" placeholder="Ej: 4521, o Estaci&#243;n YPF Ruta 40"></div>
+    <div class="modal-fl"><label>Cliente (n&#250;mero, nombre, o "PROA" si es la base)</label><input id="pe-cliente" placeholder="Ej: 4521, o PROA" oninput="peAutocompletar()"></div>
     <div class="modal-fl"><label>&#191;Trabajo realizado?</label>
-      <select id="pe-trabajo">
+      <select id="pe-trabajo" onchange="peAutocompletar()">
         <option value="">&#8212; sin definir &#8212;</option>
         <option value="SI">S&#205;</option>
         <option value="NO">NO</option>
+      </select>
+    </div>
+    <div class="modal-fl"><label>Observaci&#243;n / Conformidad</label>
+      <select id="pe-conf">
+        <option value="">&#8212; sin definir &#8212;</option>
+        <option value="OK">OK</option>
+        <option value="PROA">PROA</option>
+        <option value="1° Visita">1&#176; Visita (no se encontr&#243;, vuelven despu&#233;s)</option>
+        <option value="2° Visita">2&#176; Visita</option>
+        <option value="Estación de servicio">Estaci&#243;n de servicio</option>
+        <option value="Parada no corresponde a cliente según parte diario">Parada no corresponde a cliente seg&#250;n parte diario</option>
+        <option value="Parada Breve">Parada Breve</option>
+        <option value="Orden no realizada">Orden no realizada</option>
       </select>
     </div>
     <div style="display:flex;gap:8px">
@@ -929,8 +942,10 @@ function renderResumen(m){
   var agm=m.paradas.filter(function(p){return p.gA&&p.gA.multi});
   var trab=computeTrabajos(m,'todos');
   var kmTot=Math.round(m.paradas.reduce(function(a,p){return a+(p.dist||0)},0));
+  var kpiMovil='<div class="kpi" style="border-left:4px solid '+m.color+';background:linear-gradient(135deg,'+m.color+'14,transparent)">'+
+    '<div class="kpi-l">M\u00f3vil</div><div class="kpi-v" style="color:'+m.color+'">'+m.label+'</div></div>';
   sg('sg',
-    kpi('M\u00f3vil',m.label,''),kpi('Paradas totales',aw.length,''),kpi('Km totales',kmTot.toLocaleString('es-AR'),''),
+    kpiMovil,kpi('Paradas totales',aw.length,''),kpi('Km totales',kmTot.toLocaleString('es-AR'),''),
     kpi('Paradas +1h',al.length,al.length>3?'wn':''),kpi('Alertas GPS',ag.length,ag.length>0?'dn':''),
     kpi('&#127968; Domicilio',ad.length,ad.length>0?'dm':''),kpi('&#9981; Gasolineras',agm.length,agm.length>0?'gs':''),
     trab.total>0?kpi('Trabajos OK',trab.ok+'/'+trab.total,'ok'):''
@@ -1009,16 +1024,17 @@ function renderPanel(m){
     '<div id="notas-wrap"></div>'+
     '<div id="nap-search-wrap"></div>'+
     mapH+dbts+'<div id="tdw"></div>'+
+    '<div class="ts"><div class="th"><div class="tt">Detalle de paradas</div><div style="font-size:11px;color:var(--tx3)" id="tc"></div></div>'+
+      '<div class="tw"><table><thead><tr>'+
+        '<th>Fecha</th><th>Hora</th><th>N\u00b0</th><th>Ubicaci\u00f3n</th><th>Dist.</th><th>Dur. parada</th>'+
+        (m.hC?'<th>Cliente</th>':'')+(m.hT?'<th>Trabajo</th>':'')+'<th>T. Inst/Reclamo</th><th>Obs.</th>'+
+      '</tr></thead><tbody id="tb"></tbody></table></div></div>'+
     '<div class="cc"><div class="ct">Paradas por d\u00eda</div>'+
       '<div class="lg"><div class="li"><div class="lsq" style="background:'+m.color+'55;border:1px solid '+m.color+'"></div>Total</div>'+
       '<div class="li"><div class="lsq" style="background:#fef2f2;border:1px solid #dc2626"></div>+1h</div></div>'+
       '<div class="cw"><canvas id="cbar"></canvas></div></div>'+
     (m.hC?'<div id="clc-wrap"></div>':'')+
-    '<div class="ts"><div class="th"><div class="tt">Detalle de paradas</div><div style="font-size:11px;color:var(--tx3)" id="tc"></div></div>'+
-      '<div class="tw"><table><thead><tr>'+
-        '<th>Fecha</th><th>Hora</th><th>N\u00b0</th><th>Ubicaci\u00f3n</th><th>Dist.</th><th>Dur. parada</th>'+
-        (m.hC?'<th>Cliente</th>':'')+(m.hT?'<th>Trabajo</th>':'')+'<th>T. Inst/Reclamo</th><th>Obs.</th>'+
-      '</tr></thead><tbody id="tb"></tbody></table></div></div>';
+    (m.hT?'<div class="cc"><div class="ct">Efectividad de trabajos</div><div class="cw" style="max-width:340px;margin:0 auto"><canvas id="cpie"></canvas></div></div>':'');
 
   updKpis(m);updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
   if(hC)rMapa(m,'t');
@@ -1035,6 +1051,23 @@ function renderPanel(m){
       x:{ticks:{font:{size:10},color:'#9c9890'},grid:{display:false}}}}});
   }
   buildCli(m);
+  buildEfectividad(m);
+}
+
+/* === GRÁFICO DE TORTA: EFECTIVIDAD DE TRABAJOS === */
+function buildEfectividad(m){
+  var el=document.getElementById('cpie');
+  if(!el)return;
+  var ps=m.paradas.filter(function(p){return !p.isP&&p.trab&&p.trab.trim()});
+  if(!ps.length){var w=el.closest('.cc');if(w)w.style.display='none';return;}
+  var w2=el.closest('.cc');if(w2)w2.style.display='';
+  var cont={'SI':0,'NO':0};
+  ps.forEach(function(p){if(cont.hasOwnProperty(p.trab))cont[p.trab]++;});
+  var labels=Object.keys(cont).filter(function(k){return cont[k]>0});
+  var vals=labels.map(function(k){return cont[k]});
+  var colores={'SI':'#16a34a','NO':'#dc2626'};
+  CI['pie']=new Chart(el,{type:'doughnut',data:{labels:labels,datasets:[{data:vals,backgroundColor:labels.map(function(l){return colores[l]||'#6b6760'}),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}},tooltip:{callbacks:{label:function(ctx){var t=vals.reduce(function(a,b){return a+b},0);return ' '+ctx.label+': '+ctx.parsed+' ('+Math.round(ctx.parsed/t*100)+'%)'}}}}}});
 }
 
 
@@ -1299,14 +1332,15 @@ function updTbl(m){
   var ps=pFilt(m),tb=document.getElementById('tb'),tc=document.getElementById('tc');if(!tb)return;
   if(tc)tc.textContent=ps.length+' registros'+(SEL_PARADAS.size?' \u2014 '+SEL_PARADAS.size+' seleccionada(s)':'');
   tb.innerHTML=ps.map(function(p){
+    var pidx=m.paradas.indexOf(p);
     var il=!p.isP&&!p.isPn&&p.durMin>=LM;
     var db2=p.isPn?'<span class="bd bdn2">pernocte</span>':il?'<span class="bd '+(p.durMin>=VM?'bdn':'bdw')+'">'+fD(p.durMin)+'</span>':fD(p.durMin);
     var tb2=p.trab==='SI'?'<span class="bd bdo">SI</span>':p.trab&&p.trab!=='-'&&p.trab!==''?'<span class="bd bdw">'+p.trab+'</span>':'';
-    var ob=p.obs&&p.obs!=='OK'&&p.obs.trim()?'<span class="bd '+(p.obs.toUpperCase().indexOf('ALERTA')>=0?'bdn':'bdn2')+'">'+p.obs.slice(0,45)+'</span>':p.obs==='OK'?'<span style="font-size:11px;color:var(--tx3)">OK</span>':'';
+    var ob=p.conf&&p.conf!=='OK'&&p.conf.trim()?'<span class="bd bdn2">'+p.conf+'</span>':p.conf==='OK'?'<span style="font-size:11px;color:var(--tx3)">OK</span>':'';
+    var editBtn='<button onclick="event.stopPropagation();editarParadaBtn('+pidx+')" title="Editar esta parada" style="border:none;background:none;cursor:pointer;font-size:13px;opacity:.5;padding:0 2px" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">&#9998;&#65039;</button>';
     var dm=p.dA?'<span class="bd bdm">&#127968; '+p.dA.dist+'m</span>':'';
     var gm=p.gA?'<span class="bd '+(p.gA.multi?'bdgm':'bdg')+'">&#9981;'+(p.gA.multi?' x2+':'')+' '+fD(p.durMin)+'</span>':'';
     var spdb=p.vmax>=100?'<span class="bd" style="background:#fff1f2;color:#e11d48">&#128680; '+p.vmax+' km/h</span>':'';
-    var pidx=m.paradas.indexOf(p);
     var sel=SEL_PARADAS.has(pidx);
     var rc=(p.isP?'rp':p.dA?'rd':p.gA?'rg':p.vmax>=100?'rspd':'')+(sel?' row-sel':'');
     var tip='Parada '+(p.n||'')+' \u2014 '+p.fec+' '+p.hora+(p.cli?' \u2014 Cliente: '+p.cli:' \u2014 sin cliente asignado (click para completar)')+'\n'+p.loc+'\nDuraci\u00f3n de la parada: '+fD(p.durMin);
@@ -1320,8 +1354,13 @@ function updTbl(m){
       (m.hC?'<td style="font-family:var(--fm);font-size:11px">'+p.cli+'</td>':'')+
       (m.hT?'<td>'+tb2+'</td>':'')+
       '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap">'+(p.instMin>0?fD(p.instMin):'\u2014')+'</td>'+
-      '<td>'+ob+'</td></tr>';
+      '<td>'+ob+' '+(SUPERVISOR_MODE?'':editBtn)+'</td></tr>';
   }).join('');
+}
+function editarParadaBtn(pidx){
+  var m=DATA[aM],p=m.paradas[pidx];
+  if(!p)return;
+  abrirEditorParada(m,p);
 }
 function toggleSelParada(pidx){
   if(SEL_PARADAS.has(pidx))SEL_PARADAS.delete(pidx);else SEL_PARADAS.add(pidx);
@@ -1344,9 +1383,17 @@ function abrirEditorParada(m,p){
     '<b>Parada '+(p.n||'')+'</b> \u2014 '+p.fec+' '+p.hora+'<br>'+p.loc+
     '<br>Duraci\u00f3n de la parada: '+fD(p.durMin);
   document.getElementById('pe-cliente').value=p.cli||'';
-  document.getElementById('pe-trabajo').value=(p.trab==='SI'||p.trab==='NO')?p.trab:'';
+  document.getElementById('pe-trabajo').value=p.trab||'';
+  document.getElementById('pe-conf').value=p.conf||'';
   document.getElementById('paradaEditModal').classList.add('on');
   setTimeout(function(){document.getElementById('pe-cliente').focus();},50);
+}
+function peAutocompletar(){
+  var cli=document.getElementById('pe-cliente').value.trim().toUpperCase();
+  var trab=document.getElementById('pe-trabajo').value;
+  var confSel=document.getElementById('pe-conf');
+  if(cli==='PROA')confSel.value='PROA';
+  else if(trab==='SI'&&!confSel.value)confSel.value='OK';
 }
 function closeParadaEditModal(){document.getElementById('paradaEditModal').classList.remove('on');PE_ACTUAL=null;}
 function guardarEdicionParada(){
@@ -1354,11 +1401,13 @@ function guardarEdicionParada(){
   var p=PE_ACTUAL.p;
   p.cli=document.getElementById('pe-cliente').value.trim();
   p.trab=document.getElementById('pe-trabajo').value;
+  p.conf=document.getElementById('pe-conf').value;
   closeParadaEditModal();
   updTbl(DATA[aM]);
   rMapa(DATA[aM],MAPA_FILTRO_ACTUAL);
   updTrabCounter(DATA[aM]);
   buildCli(DATA[aM]);
+  buildEfectividad(DATA[aM]);
   guardarBorradorAuto();
   toast('\u2713 Parada actualizada');
 }
