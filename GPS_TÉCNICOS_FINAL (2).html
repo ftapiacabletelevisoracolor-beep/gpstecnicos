@@ -227,6 +227,7 @@ tbody tr:last-child td{border-bottom:none}
       <button class="bo" id="btn-historial" onclick="openHistorial()">&#128197; Historial</button>
       <button class="bo" id="btn-guardar-hist" onclick="exportToHistorial()">&#128228; Guardar en historial</button>
       <button class="bg" id="btn-guardar-sesion" onclick="guardarSesion()">&#128190; Guardar sesión</button>
+      <span id="borrador-msg" style="font-size:11px;color:var(--tx3);opacity:.55;align-self:center;margin-left:2px;transition:opacity .3s"></span>
       <button class="bo" onclick="window.print()">Imprimir</button>
       <button class="bo" id="btn-cargar-otro" onclick="resetDash()">Cargar otro</button>
       <button class="bg" id="btn-buscar-otro" onclick="backToSearch()" style="display:none">&#128269; Buscar otro reporte</button>
@@ -258,6 +259,25 @@ tbody tr:last-child td{border-bottom:none}
     <div class="hist-sub">Busc&#225; por m&#243;vil (ej: CTC020) o por fecha. Hac&#233; clic en un reporte para abrirlo.</div>
     <input class="hist-search" id="hist-search" placeholder="Buscar m&#243;vil o fecha..." oninput="renderHistList(this.value)">
     <div id="hist-list"></div>
+  </div>
+</div>
+
+<div class="modal-ov" id="paradaEditModal">
+  <div class="modal-bx">
+    <div class="modal-hd"><h3>&#128204; Completar parada</h3><button class="modal-x" onclick="closeParadaEditModal()">&#10005;</button></div>
+    <div id="parada-edit-info" style="font-size:12px;color:var(--tx2);line-height:1.6;margin-bottom:1rem"></div>
+    <div class="modal-fl"><label>Cliente (n&#250;mero, nombre, o "Estaci&#243;n de servicio")</label><input id="pe-cliente" placeholder="Ej: 4521, o Estaci&#243;n YPF Ruta 40"></div>
+    <div class="modal-fl"><label>&#191;Trabajo realizado?</label>
+      <select id="pe-trabajo">
+        <option value="">&#8212; sin definir &#8212;</option>
+        <option value="SI">S&#205;</option>
+        <option value="NO">NO</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="ubtn" style="flex:1" onclick="guardarEdicionParada()">Guardar</button>
+      <button class="bo" onclick="closeParadaEditModal()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -465,12 +485,20 @@ function handleFile(file){
       }
       if(!parsed.length){alert('No se encontraron datos validos en el archivo.\nVerifique que sea el Excel generado por el script.');ld(false);return;}
       DATA=parsed; aD='todos';
+      var borrador=buscarBorrador();
+      if(borrador&&confirm('Encontr\u00e9 un borrador guardado de este reporte ('+new Date(borrador.fecha).toLocaleString('es-AR')+') con ediciones sin publicar todav\u00eda.\n\n\u00bfContinuar desde ah\u00ed en vez de empezar de cero?')){
+        DATA=borrador.data;GAS=borrador.gas||[];if(borrador.gc)Object.assign(GC,borrador.gc);
+        calcAl();render();ld(false);
+        iniciarAutoguardado();
+        return;
+      }
       ld(true,'Cargando estaciones de servicio...');
       await fetchGas();
       ld(true,'Geocodificando domicilios de tecnicos...');
       await geoTecs();
       calcAl();
       render();
+      iniciarAutoguardado();
     }catch(err){
       alert('Error al leer el archivo:\n'+err.message+'\n\nVerifique que sea el Excel correcto.');
       console.error(err);
@@ -1281,7 +1309,8 @@ function updTbl(m){
     var pidx=m.paradas.indexOf(p);
     var sel=SEL_PARADAS.has(pidx);
     var rc=(p.isP?'rp':p.dA?'rd':p.gA?'rg':p.vmax>=100?'rspd':'')+(sel?' row-sel':'');
-    return '<tr class="'+rc+'" data-pidx="'+pidx+'" onclick="toggleSelParada('+pidx+')" style="cursor:pointer" title="Click para marcar esta parada en el mapa">'+
+    var tip='Parada '+(p.n||'')+' \u2014 '+p.fec+' '+p.hora+(p.cli?' \u2014 Cliente: '+p.cli:' \u2014 sin cliente asignado (click para completar)')+'\n'+p.loc+'\nDuraci\u00f3n de la parada: '+fD(p.durMin);
+    return '<tr class="'+rc+'" data-pidx="'+pidx+'" onclick="onParadaClick('+pidx+')" style="cursor:pointer" title="'+escA(tip)+'">'+
       '<td style="white-space:nowrap;color:var(--tx2)">'+p.fec+'</td>'+
       '<td style="white-space:nowrap;font-family:var(--fm);font-size:11px">'+p.hora+'</td>'+
       '<td style="color:var(--tx3);text-align:center">'+p.n+'</td>'+
@@ -1298,6 +1327,40 @@ function toggleSelParada(pidx){
   if(SEL_PARADAS.has(pidx))SEL_PARADAS.delete(pidx);else SEL_PARADAS.add(pidx);
   updTbl(DATA[aM]);
   rMapa(DATA[aM],MAPA_FILTRO_ACTUAL);
+}
+function escA(s){return String(s==null?'':s).replace(/"/g,'&quot;');}
+
+/* === EDICIÓN RÁPIDA DE PARADA (cliente / trabajo realizado) === */
+var PE_ACTUAL=null; // {m, p}
+function onParadaClick(pidx){
+  var m=DATA[aM],p=m.paradas[pidx];
+  if(!p)return;
+  if(SUPERVISOR_MODE||(p.cli&&p.cli.trim())){toggleSelParada(pidx);return;}
+  abrirEditorParada(m,p);
+}
+function abrirEditorParada(m,p){
+  PE_ACTUAL={m:m,p:p};
+  document.getElementById('parada-edit-info').innerHTML=
+    '<b>Parada '+(p.n||'')+'</b> \u2014 '+p.fec+' '+p.hora+'<br>'+p.loc+
+    '<br>Duraci\u00f3n de la parada: '+fD(p.durMin);
+  document.getElementById('pe-cliente').value=p.cli||'';
+  document.getElementById('pe-trabajo').value=(p.trab==='SI'||p.trab==='NO')?p.trab:'';
+  document.getElementById('paradaEditModal').classList.add('on');
+  setTimeout(function(){document.getElementById('pe-cliente').focus();},50);
+}
+function closeParadaEditModal(){document.getElementById('paradaEditModal').classList.remove('on');PE_ACTUAL=null;}
+function guardarEdicionParada(){
+  if(!PE_ACTUAL)return;
+  var p=PE_ACTUAL.p;
+  p.cli=document.getElementById('pe-cliente').value.trim();
+  p.trab=document.getElementById('pe-trabajo').value;
+  closeParadaEditModal();
+  updTbl(DATA[aM]);
+  rMapa(DATA[aM],MAPA_FILTRO_ACTUAL);
+  updTrabCounter(DATA[aM]);
+  buildCli(DATA[aM]);
+  guardarBorradorAuto();
+  toast('\u2713 Parada actualizada');
 }
 
 
@@ -1426,7 +1489,16 @@ function rMapa(m,f){
         (p.cli?'<span style="color:#9c9890">Cliente</span><span>'+p.cli+'</span>':'')+
         (p.trab?'<span style="color:#9c9890">Trabajo</span><span>'+p.trab+'</span>':'')+
       '</div>'+di+gi+oi+'</div>');
-    mk.on('click',function(){toggleSelParada(pidx);});
+    mk.bindTooltip(
+      '<div style="font-size:11px;line-height:1.5">'+
+      '<b>Parada '+(p.n||'')+'</b> \u2014 '+p.fec+' '+p.hora+
+      (p.cli?'<br><b>Cliente:</b> '+p.cli:(SUPERVISOR_MODE?'':'<br><i style="color:#d97706">Sin cliente \u2014 click para completar</i>'))+
+      '<br><b>Duraci\u00f3n de la parada:</b> '+fD(p.durMin)+
+      '<br>'+p.loc+
+      '</div>',
+      {direction:'top',offset:[0,-sz/2-2],opacity:0.95,sticky:false}
+    );
+    mk.on('click',function(){onParadaClick(pidx);});
     bds.push([p.lat,p.lon]);
   });
   var selBds=[];
@@ -1570,6 +1642,7 @@ async function exportToHistorial(){
       ld(true,'Publicando directo en GitHub...');
       await publishToGithub(idBase,fname,JSON.stringify(payload),JSON.stringify(idx));
       ld(false);
+      borrarBorrador();
       toast('\u2713 Publicado directo en GitHub \u2014 ya est\u00e1 disponible para los supervisores');
       return;
     }
@@ -1577,6 +1650,7 @@ async function exportToHistorial(){
     downloadJSON(payload,idBase+'.json');
     setTimeout(function(){downloadJSON(idx,'index.json');},300);
     ld(false);
+    borrarBorrador();
     toast('\u2713 Se descargaron 2 archivos \u2014 subilos a la carpeta reportes/ en GitHub');
   }catch(e){
     ld(false);
@@ -1731,6 +1805,44 @@ function importarCruce(file){
   rd.readAsText(file,'UTF-8');
 }
 
+/* === BORRADOR AUTOMÁTICO (localStorage) — para ir editando sin perder nada antes de publicar === */
+function claveBorrador(){
+  if(!DATA.length)return null;
+  var movs=DATA.map(function(m){return m.label}).sort().join('|');
+  var desde=DATA[0].desde||'',hasta=DATA[0].hasta||'';
+  return 'ctc_borrador::'+movs+'::'+desde+'::'+hasta;
+}
+function guardarBorradorAuto(){
+  if(SUPERVISOR_MODE)return; // el supervisor nunca escribe borradores
+  var k=claveBorrador();if(!k)return;
+  try{
+    localStorage.setItem(k,JSON.stringify({fecha:new Date().toISOString(),data:DATA,gas:GAS,gc:GC}));
+    marcarBorradorGuardado();
+  }catch(e){/* localStorage lleno u otro error, se ignora silenciosamente */}
+}
+function buscarBorrador(){
+  if(SUPERVISOR_MODE)return null;
+  var k=claveBorrador();if(!k)return null;
+  try{var raw=localStorage.getItem(k);return raw?JSON.parse(raw):null;}catch(e){return null;}
+}
+function borrarBorrador(){
+  var k=claveBorrador();if(!k)return;
+  try{localStorage.removeItem(k);}catch(e){}
+}
+var _AUTOSAVE_TIMER=null;
+function iniciarAutoguardado(){
+  if(SUPERVISOR_MODE||_AUTOSAVE_TIMER)return;
+  _AUTOSAVE_TIMER=setInterval(function(){if(DATA.length)guardarBorradorAuto();},12000);
+}
+function marcarBorradorGuardado(){
+  var el=document.getElementById('borrador-msg');
+  if(!el)return;
+  el.textContent='\u2713 Borrador guardado '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  el.style.opacity='1';
+  clearTimeout(el._t);
+  el._t=setTimeout(function(){el.style.opacity='.55'},2500);
+}
+
 function guardarSesion(){
   ld(true,'Guardando sesi\u00f3n...');
   setTimeout(function(){
@@ -1770,6 +1882,7 @@ function cargarSesion(file){
       aD='todos';aM=0;
       calcAl();
       render();
+      iniciarAutoguardado();
     }catch(err){alert('Error al cargar sesi\u00f3n:\n'+err.message);}
     ld(false);
   };
