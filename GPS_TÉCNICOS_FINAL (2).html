@@ -852,7 +852,7 @@ function calcAl(){
       }
       // Gasolinera: SOLO por texto manual en columna Conformidad
       // Escribir en el Excel: YPF, Shell, Axion, Puma, Estación de servicio, etc.
-      var obs=sv2(p.obs).toLowerCase();
+      var obs=sv2(p.conf).toLowerCase();
       if(obs.indexOf('estación de servicio')>=0||obs.indexOf('estacion de servicio')>=0||
          obs.indexOf('gasolinera')>=0||obs.indexOf('combustible')>=0||
          obs.indexOf('ypf')>=0||obs.indexOf('shell')>=0||
@@ -882,6 +882,17 @@ function calcAl(){
     Object.keys(grpCli).forEach(function(k){
       var arr=grpCli[k];
       if(arr.length>1)arr.forEach(function(p,i){p.cliRep={n:i+1,tot:arr.length,cli:p.cli.trim()}});
+    });
+    // Cliente repetido en toda la semana (sin importar el día) — para pintarlo igual en el mapa
+    var grpCliSemana={};
+    m.paradas.forEach(function(p){
+      if(p.isP)return;
+      var c=(p.cli||'').trim().toUpperCase();
+      if(!c||c==='-')return;
+      (grpCliSemana[c]=grpCliSemana[c]||[]).push(p);
+    });
+    Object.keys(grpCliSemana).forEach(function(c){
+      if(grpCliSemana[c].length>1)grpCliSemana[c].forEach(function(p){p.cliRepSemana=c;});
     });
   });
 }
@@ -953,6 +964,19 @@ function renderResumen(m){
 }
 
 function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
+function eliminarDia(mi,dia){
+  var m=DATA[mi];
+  var cant=m.paradas.filter(function(p){return p.fec===dia}).length;
+  if(!confirm('\u00bfEliminar las '+cant+' parada(s) del '+dia+' para '+m.label+'?\n\nEsto no se puede deshacer ac\u00e1 \u2014 si te equivoc\u00e1s, hay que volver a subir el Excel original.'))return;
+  m.paradas=m.paradas.filter(function(p){return p.fec!==dia});
+  if(m.tecOverride)delete m.tecOverride[dia];
+  SEL_PARADAS.clear();
+  if(aD===dia)aD='todos';
+  calcAl();
+  render();
+  guardarBorradorAuto();
+  toast('\u2713 Se eliminaron las paradas del '+dia);
+}
 
 /* === RENDER PANEL === */
 function renderPanel(m){
@@ -981,7 +1005,10 @@ function renderPanel(m){
     dias.map(function(d,i){
       var dc=DAY_COLORS[i%DAY_COLORS.length];
       var isOn=aD===d;
-      return '<button class="db '+(isOn?'on':'')+'" onclick="chDay(\''+d+'\',this)" style="'+(isOn?'background:'+dc+';border-color:'+dc+';color:#fff':'border-color:'+dc+';color:'+dc)+'">'+'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+(isOn?'rgba(255,255,255,0.7)':dc)+';margin-right:5px;vertical-align:middle"></span>'+d+'</button>';
+      return '<span style="display:inline-flex;align-items:center;gap:1px">'+
+        '<button class="db '+(isOn?'on':'')+'" onclick="chDay(\''+d+'\',this)" style="'+(isOn?'background:'+dc+';border-color:'+dc+';color:#fff':'border-color:'+dc+';color:'+dc)+'">'+'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+(isOn?'rgba(255,255,255,0.7)':dc)+';margin-right:5px;vertical-align:middle"></span>'+d+'</button>'+
+        (SUPERVISOR_MODE?'':'<button onclick="event.stopPropagation();eliminarDia('+aM+',\''+d+'\')" title="Eliminar todas las paradas de este d\u00eda" style="border:none;background:none;color:#9c9890;cursor:pointer;font-size:12px;padding:2px 4px;opacity:.6" onmouseover="this.style.opacity=1;this.style.color=\'#dc2626\'" onmouseout="this.style.opacity=.6;this.style.color=\'#9c9890\'">&#128465;&#65039;</button>')+
+        '</span>';
     }).join('')+'</div>';
 
   var mapH=hC?
@@ -1415,6 +1442,12 @@ function guardarEdicionParada(){
 
 /* === COLORES POR DÍA === */
 var DAY_COLORS=['#2563eb','#d97706','#16a34a','#9333ea','#dc2626','#0891b2','#db2777','#b45309','#0d9488','#7c3aed'];
+function getCliColor(cli){
+  var s=(cli||'').trim().toUpperCase();
+  var h=0;
+  for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;
+  return DAY_COLORS[h%DAY_COLORS.length];
+}
 function getDayColor(fec,m,overrideColor){
   if(overrideColor)return overrideColor; // si es alerta/dom/gas usa el color especial
   if(!fec)return '#6b6760';
@@ -1485,9 +1518,17 @@ function rMapa(m,f){
     });
     if(f==='g'&&GAS.length){var all=GAS.filter(function(g){return g.lat&&g.lon}).map(function(g){return[g.lat,g.lon]});if(all.length)LM2.fitBounds(all,{padding:[30,30]});return;}
   }
-  // Domicilios
+  // Domicilios (técnicos de base + cualquier excepción cargada en algún día)
   if(f==='t'||f==='d'){
-    m.tecs.forEach(function(t){
+    var todosTecsDom=m.tecs.slice();
+    if(m.tecOverride){
+      Object.keys(m.tecOverride).forEach(function(dia){
+        m.tecOverride[dia].forEach(function(t){
+          if(!todosTecsDom.some(function(x){return x.nombre===t.nombre}))todosTecsDom.push(t);
+        });
+      });
+    }
+    todosTecsDom.forEach(function(t){
       if(t.lat&&t.lon){
         L.circle([t.lat,t.lon],{radius:100,color:'#9333ea',fillColor:'#9333ea',fillOpacity:.08,weight:1.5,dashArray:'5,5'}).addTo(LM2);
         var ic=L.divIcon({className:'',html:'<div style="background:#9333ea;color:#fff;border:2px solid #fff;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.3);white-space:nowrap">&#127968; '+t.nombre.split(' ')[0]+'</div>',iconAnchor:[35,20]});
@@ -1516,7 +1557,7 @@ function rMapa(m,f){
   }
   ps.forEach(function(p){
     var ia=aSet[p.loc]||p.durMin>=VM;var il=p.durMin>=LM&&!p.isP&&!p.isPn;
-    var specialCol=p.dA?'#9333ea':p.gA?'#ea580c':p.vmax>=100?'#e11d48':p.isP?'#6b6760':ia?'#dc2626':il?'#d97706':null;
+    var specialCol=p.dA?'#9333ea':p.gA?'#ea580c':p.vmax>=100?'#e11d48':p.isP?'#6b6760':ia?'#dc2626':il?'#d97706':p.cliRepSemana?getCliColor(p.cliRepSemana):null;
     var col=specialCol||getDayColor(p.fec,DATA[aM]);
     var pidx=m.paradas.indexOf(p);
     var sel=SEL_PARADAS.has(pidx);
@@ -1525,7 +1566,8 @@ function rMapa(m,f){
     var ic=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2.5px solid #fff;'+ring+'box-shadow:0 1px 5px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:'+(sz>16?'10':'9')+'px;font-weight:700;font-family:sans-serif">'+(p.n||'')+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
     var di=p.dA?'<div style="margin-top:6px;padding:4px 6px;background:#fdf4ff;border-radius:4px;font-size:11px;color:#9333ea">&#127968; A '+p.dA.dist+'m del domicilio de '+p.dA.tec+'</div>':'';
     var gi=p.gA?'<div style="margin-top:6px;padding:4px 6px;background:#fff7ed;border-radius:4px;font-size:11px;color:#ea580c">&#9981; '+p.gA.nombre+(p.gA.multi?' \u2014 MULTIVISITA':'')+' \u2014 '+fD(p.durMin)+'</div>':'';
-    var oi=p.obs&&p.obs!=='OK'?'<div style="margin-top:6px;padding:4px 6px;background:#fef2f2;border-radius:4px;font-size:11px;color:#dc2626">'+p.obs+'</div>':'';
+    var oi=p.conf&&p.conf!=='OK'?'<div style="margin-top:6px;padding:4px 6px;background:#fef2f2;border-radius:4px;font-size:11px;color:#dc2626">'+p.conf+'</div>':'';
+    var ci=p.cliRepSemana?'<div style="margin-top:6px;padding:4px 6px;background:'+getCliColor(p.cliRepSemana)+'18;border-radius:4px;font-size:11px;color:'+getCliColor(p.cliRepSemana)+'">&#128101; Cliente repetido esta semana</div>':'';
     var mk=L.marker([p.lat,p.lon],{icon:ic,zIndexOffset:sel?1000:0}).addTo(LM2).bindPopup(
       '<div style="font-family:sans-serif;font-size:12px;min-width:195px">'+
       '<div style="font-weight:600;margin-bottom:4px">'+p.fec+' '+p.hora+' \u2014 Parada '+p.n+'</div>'+
@@ -1537,7 +1579,7 @@ function rMapa(m,f){
         '<span style="color:#9c9890">V.m\u00e1x</span><span>'+p.vmax+' km/h</span>'+
         (p.cli?'<span style="color:#9c9890">Cliente</span><span>'+p.cli+'</span>':'')+
         (p.trab?'<span style="color:#9c9890">Trabajo</span><span>'+p.trab+'</span>':'')+
-      '</div>'+di+gi+oi+'</div>');
+      '</div>'+di+gi+oi+ci+'</div>');
     mk.bindTooltip(
       '<div style="font-size:11px;line-height:1.5">'+
       '<b>Parada '+(p.n||'')+'</b> \u2014 '+p.fec+' '+p.hora+
