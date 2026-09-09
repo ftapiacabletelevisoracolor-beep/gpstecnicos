@@ -1370,15 +1370,18 @@ function updTbl(m){
     var spdb=p.vmax>=100?'<span class="bd" style="background:#fff1f2;color:#e11d48">&#128680; '+p.vmax+' km/h</span>':'';
     var sel=SEL_PARADAS.has(pidx);
     var rc=(p.isP?'rp':p.dA?'rd':p.gA?'rg':p.vmax>=100?'rspd':'')+(sel?' row-sel':'');
+    var repColor=(!p.isP&&!p.dA&&!p.gA&&p.vmax<100&&p.cliRepSemana)?getCliColor(p.cliRepSemana):null;
+    var rowStyle='cursor:pointer'+(repColor?';background:'+repColor+'14':'');
+    var cliDot=(p.cliRepSemana&&getCliColor)?'<span title="Cliente repetido esta semana" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+getCliColor(p.cliRepSemana)+';margin-right:5px;vertical-align:middle"></span>':'';
     var tip='Parada '+(p.n||'')+' \u2014 '+p.fec+' '+p.hora+(p.cli?' \u2014 Cliente: '+p.cli:' \u2014 sin cliente asignado (click para completar)')+'\n'+p.loc+'\nDuraci\u00f3n de la parada: '+fD(p.durMin);
-    return '<tr class="'+rc+'" data-pidx="'+pidx+'" onclick="onParadaClick('+pidx+')" style="cursor:pointer" title="'+escA(tip)+'">'+
+    return '<tr class="'+rc+'" data-pidx="'+pidx+'" onclick="onParadaClick('+pidx+')" style="'+rowStyle+'" title="'+escA(tip)+'">'+
       '<td style="white-space:nowrap;color:var(--tx2)">'+p.fec+'</td>'+
       '<td style="white-space:nowrap;font-family:var(--fm);font-size:11px">'+p.hora+'</td>'+
       '<td style="color:var(--tx3);text-align:center">'+p.n+'</td>'+
       '<td style="max-width:200px;font-size:12px">'+p.loc+' '+dm+gm+spdb+'</td>'+
       '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap">'+p.dist+' km</td>'+
       '<td>'+db2+'</td>'+
-      (m.hC?'<td style="font-family:var(--fm);font-size:11px">'+p.cli+'</td>':'')+
+      (m.hC?'<td style="font-family:var(--fm);font-size:11px">'+cliDot+p.cli+'</td>':'')+
       (m.hT?'<td>'+tb2+'</td>':'')+
       '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap">'+(p.instMin>0?fD(p.instMin):'\u2014')+'</td>'+
       '<td>'+ob+' '+(SUPERVISOR_MODE?'':editBtn)+'</td></tr>';
