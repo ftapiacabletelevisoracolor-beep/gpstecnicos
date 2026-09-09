@@ -963,6 +963,77 @@ function renderResumen(m){
   );
 }
 
+/* === REPRODUCTOR DE RECORRIDO (autito animado sobre la ruta real) === */
+var PLAYER={activo:false,marker:null,raf:null};
+function renderPlayerControls(m){
+  var cont=document.getElementById('player-ctrl');
+  if(!cont)return;
+  detenerReproduccion();
+  if(aD==='todos'){cont.innerHTML='';return;}
+  var ruta=rutaParaMovil(m);
+  var pts=ruta&&ruta[aD];
+  if(!pts||pts.length<2){cont.innerHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.</div>';return;}
+  cont.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap">'+
+    '<button class="ubtn" id="btn-play-rec" onclick="iniciarReproduccion()">&#9654;&#65039; Reproducir recorrido</button>'+
+    '<select id="rec-velocidad" style="font-size:12px;padding:5px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--sf)">'+
+      '<option value="40000">Lento</option><option value="20000" selected>Normal</option><option value="10000">R\u00e1pido</option>'+
+    '</select>'+
+    '<span id="rec-reloj" style="font-family:var(--fm);font-size:12px;color:var(--tx2);min-width:48px"></span>'+
+    '<button class="bo" id="btn-stop-rec" onclick="detenerReproduccion()" style="display:none">&#9632;&#65039; Detener</button>'+
+    '</div>';
+}
+function iniciarReproduccion(){
+  var m=DATA[aM];
+  var ruta=rutaParaMovil(m);
+  var pts=ruta&&ruta[aD];
+  if(!pts||pts.length<2){toast('No hay trazado real para reproducir este d\u00eda \u2014 import\u00e1 las rutas GPS primero.');return;}
+  detenerReproduccion();
+  var conTiempo=pts[0].length>2&&pts[pts.length-1].length>2;
+  var duracionMs=parseInt((document.getElementById('rec-velocidad')||{}).value||'20000',10);
+  var carIcon=L.divIcon({className:'',html:'<div style="font-size:22px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))">&#128663;</div>',iconSize:[24,24],iconAnchor:[12,12]});
+  PLAYER.marker=L.marker([pts[0][0],pts[0][1]],{icon:carIcon,zIndexOffset:3000}).addTo(LM2);
+  PLAYER.activo=true;
+  var btnPlay=document.getElementById('btn-play-rec'),btnStop=document.getElementById('btn-stop-rec');
+  if(btnPlay)btnPlay.style.display='none';
+  if(btnStop)btnStop.style.display='';
+  var tInicioAnim=performance.now();
+  var t0=conTiempo?new Date(pts[0][2]).getTime():0;
+  var t1=conTiempo?new Date(pts[pts.length-1][2]).getTime():0;
+  var rangoMs=Math.max(t1-t0,1000);
+  function paso(){
+    if(!PLAYER.activo)return;
+    var frac=Math.min((performance.now()-tInicioAnim)/duracionMs,1);
+    var pos,horaTxt='';
+    if(conTiempo){
+      var tObj=t0+frac*rangoMs;
+      for(var i=0;i<pts.length-1;i++){
+        var ta=new Date(pts[i][2]).getTime(),tb=new Date(pts[i+1][2]).getTime();
+        if(tObj>=ta&&tObj<=tb){
+          var f=tb>ta?(tObj-ta)/(tb-ta):0;
+          pos=[pts[i][0]+(pts[i+1][0]-pts[i][0])*f,pts[i][1]+(pts[i+1][1]-pts[i][1])*f];
+          horaTxt=new Date(tObj).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+          break;
+        }
+      }
+      if(!pos){var last=pts[pts.length-1];pos=[last[0],last[1]];horaTxt=new Date(t1).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});}
+    }else{
+      var idxF=frac*(pts.length-1),i0=Math.floor(idxF),f2=idxF-i0,p0=pts[Math.min(i0,pts.length-1)],p1=pts[Math.min(i0+1,pts.length-1)];
+      pos=[p0[0]+(p1[0]-p0[0])*f2,p0[1]+(p1[1]-p0[1])*f2];
+    }
+    if(PLAYER.marker)PLAYER.marker.setLatLng(pos);
+    var reloj=document.getElementById('rec-reloj');if(reloj)reloj.textContent=horaTxt;
+    if(frac<1){PLAYER.raf=requestAnimationFrame(paso);}
+    else{toast('\u2713 Recorrido completo');var bp=document.getElementById('btn-play-rec'),bs=document.getElementById('btn-stop-rec');if(bp)bp.style.display='';if(bs)bs.style.display='none';}
+  }
+  PLAYER.raf=requestAnimationFrame(paso);
+}
+function detenerReproduccion(){
+  if(PLAYER.raf)cancelAnimationFrame(PLAYER.raf);
+  if(PLAYER.marker){try{LM2.removeLayer(PLAYER.marker);}catch(e){}}
+  PLAYER={activo:false,marker:null,raf:null};
+  var bp=document.getElementById('btn-play-rec'),bs=document.getElementById('btn-stop-rec'),rl=document.getElementById('rec-reloj');
+  if(bp)bp.style.display='';if(bs)bs.style.display='none';if(rl)rl.textContent='';
+}
 function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
 function eliminarDia(mi,dia){
   var m=DATA[mi];
@@ -1050,7 +1121,7 @@ function renderPanel(m){
     '<div id="obs-wrap"></div>'+
     '<div id="notas-wrap"></div>'+
     '<div id="nap-search-wrap"></div>'+
-    mapH+dbts+'<div id="tdw"></div>'+
+    mapH+dbts+'<div id="player-ctrl"></div>'+'<div id="tdw"></div>'+
     '<div class="ts"><div class="th"><div class="tt">Detalle de paradas</div><div style="font-size:11px;color:var(--tx3)" id="tc"></div></div>'+
       '<div class="tw"><table><thead><tr>'+
         '<th>Fecha</th><th>Hora</th><th>N\u00b0</th><th>Ubicaci\u00f3n</th><th>Dist.</th><th>Dur. parada</th>'+
@@ -1064,6 +1135,7 @@ function renderPanel(m){
     (m.hT?'<div class="cc"><div class="ct">Efectividad de trabajos</div><div class="cw" style="max-width:340px;margin:0 auto"><canvas id="cpie"></canvas></div></div>':'');
 
   updKpis(m);updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
+  renderPlayerControls(m);
   if(hC)rMapa(m,'t');
   // Bar chart
   var barEl=document.getElementById('cbar');
@@ -1278,6 +1350,7 @@ function chDay(d,btn){
   aD=d;
   document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
   var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
+  renderPlayerControls(m);
   if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
 }
 
