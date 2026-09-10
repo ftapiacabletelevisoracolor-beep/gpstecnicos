@@ -981,6 +981,7 @@ function renderPlayerControls(m){
   var horarioHTML='<div style="display:flex;align-items:center;gap:6px;margin:6px 0 2px;font-size:11px;color:var(--tx2);flex-wrap:wrap">'+
     '<span>&#128337; Salida esperada:</span>'+
     '<input type="time" id="horario-salida-input" value="'+(m.horarioSalida||'')+'" '+(SUPERVISOR_MODE?'disabled':'onchange="setHorarioSalida('+aM+',this.value)"')+' style="font-size:11px;padding:3px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf)">'+
+    (SUPERVISOR_MODE?'':'<button onclick="aplicarHorarioATodos()" title="Usar este horario para todos los m\u00f3viles del reporte" style="border:none;background:none;color:var(--ac);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">aplicar a todos</button>')+
     '<span id="salida-real-badge"></span>'+
     '</div>';
   var ruta=rutaParaMovil(m);
@@ -1031,13 +1032,31 @@ function setHorarioSalida(mi,val){
   guardarBorradorAuto();
   actualizarBadgeSalida(DATA[mi]);
 }
+function aplicarHorarioATodos(){
+  var val=(document.getElementById('horario-salida-input')||{}).value;
+  if(!val){toast('Eleg\u00ed primero un horario');return;}
+  DATA.forEach(function(m){m.horarioSalida=val;});
+  guardarBorradorAuto();
+  actualizarBadgeSalida(DATA[aM]);
+  toast('\u2713 Horario aplicado a los '+DATA.length+' m\u00f3viles');
+}
+function sumarMinutosAHora(horaStr,minutos){
+  var p=horaStr.split(':');
+  var total=parseInt(p[0],10)*60+parseInt(p[1],10)+(minutos||0);
+  total=((total%1440)+1440)%1440;
+  var hh=Math.floor(total/60),mm=total%60;
+  return (hh<10?'0':'')+hh+':'+(mm<10?'0':'')+mm;
+}
 function actualizarBadgeSalida(m){
   var el=document.getElementById('salida-real-badge');
   if(!el)return;
   if(!m.horarioSalida){el.innerHTML='';return;}
   var delDia=m.paradas.filter(function(p){return p.fec===aD&&!p.isP&&!p.isPn&&p.hora;});
   if(!delDia.length){el.innerHTML='';return;}
-  var horaReal=delDia.reduce(function(a,p){return p.hora<a?p.hora:a;},delDia[0].hora);
+  delDia.sort(function(a,b){return a.hora<b.hora?-1:a.hora>b.hora?1:0;});
+  var primera=delDia[0];
+  var esProa=(primera.loc||'').toUpperCase().indexOf('PROA')!==-1;
+  var horaReal=esProa?sumarMinutosAHora(primera.hora,primera.durMin||0):primera.hora;
   var pE=m.horarioSalida.split(':'),pR=horaReal.split(':');
   var diffMin=(parseInt(pR[0],10)*60+parseInt(pR[1],10))-(parseInt(pE[0],10)*60+parseInt(pE[1],10));
   var txt,color;
