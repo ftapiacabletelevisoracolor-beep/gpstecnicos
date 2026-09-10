@@ -972,7 +972,7 @@ function puntoMasCercano(pts,latlng){
   return best;
 }
 /* === REPRODUCTOR DE RECORRIDO (autito animado sobre la ruta real) === */
-var PLAYER={activo:false,marker:null,raf:null,pts:null,conTiempo:false,t0:0,t1:0,frac:0,pausado:true,tAnimBase:0,velocidad:1,duracionBase:30000};
+var PLAYER={activo:false,marker:null,raf:null,pts:null,conTiempo:false,t0:0,t1:0,frac:0,pausado:true,tAnimBase:0,velocidad:1,duracionBase:30000,timeEl:null};
 function renderPlayerControls(m){
   var cont=document.getElementById('player-ctrl');
   if(!cont)return;
@@ -998,10 +998,12 @@ function renderPlayerControls(m){
   var carIcon=L.divIcon({className:'',html:
     '<div style="position:relative;width:22px;height:22px">'+
       '<div style="font-size:20px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))">&#128663;</div>'+
-      '<div id="player-car-time" style="position:absolute;left:24px;top:2px;background:'+m.color+';color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.4)">&#8212;</div>'+
+      '<div class="player-car-time" style="position:absolute;left:24px;top:2px;background:'+m.color+';color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.4)">&#8212;</div>'+
     '</div>',
     iconSize:[110,22],iconAnchor:[11,11]});
   PLAYER.marker=L.marker([pts[0][0],pts[0][1]],{icon:carIcon,zIndexOffset:3000}).addTo(LM2);
+  var elMk=PLAYER.marker.getElement();
+  PLAYER.timeEl=elMk?elMk.querySelector('.player-car-time'):null;
   aplicarFraccion(0);
 }
 function posicionEnFraccion(frac){
@@ -1026,7 +1028,7 @@ function aplicarFraccion(frac){
   var r=posicionEnFraccion(PLAYER.frac);
   if(PLAYER.marker)PLAYER.marker.setLatLng(r.pos);
   var reloj=document.getElementById('rec-reloj');if(reloj)reloj.textContent=r.hora||'\u2014';
-  var carTime=document.getElementById('player-car-time');if(carTime)carTime.textContent=r.hora||'\u2014';
+  if(PLAYER.timeEl)PLAYER.timeEl.textContent=r.hora||'\u2014';
   var scrub=document.getElementById('rec-scrub');if(scrub)scrub.value=Math.round(PLAYER.frac*1000);
 }
 function togglePlayPause(){
@@ -1071,7 +1073,7 @@ function cambiarVelocidad(val){
 function detenerReproduccion(){
   if(PLAYER.raf)cancelAnimationFrame(PLAYER.raf);
   if(PLAYER.marker){try{LM2.removeLayer(PLAYER.marker);}catch(e){}}
-  PLAYER={activo:false,marker:null,raf:null,pts:null,conTiempo:false,t0:0,t1:0,frac:0,pausado:true,tAnimBase:0,velocidad:1,duracionBase:30000};
+  PLAYER={activo:false,marker:null,raf:null,pts:null,conTiempo:false,t0:0,t1:0,frac:0,pausado:true,tAnimBase:0,velocidad:1,duracionBase:30000,timeEl:null};
 }
 function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
 function eliminarDia(mi,dia){
