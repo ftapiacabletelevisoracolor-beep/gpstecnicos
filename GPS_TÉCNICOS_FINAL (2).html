@@ -1167,8 +1167,8 @@ function renderPanel(m){
     (m.hT?'<div class="cc"><div class="ct">Efectividad de trabajos</div><div class="cw" style="max-width:340px;margin:0 auto"><canvas id="cpie"></canvas></div></div>':'');
 
   updKpis(m);updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
-  renderPlayerControls(m);
   if(hC)rMapa(m,'t');
+  renderPlayerControls(m);
   // Bar chart
   var barEl=document.getElementById('cbar');
   if(barEl){
@@ -1382,8 +1382,8 @@ function chDay(d,btn){
   aD=d;
   document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
   var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
-  renderPlayerControls(m);
   if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
+  renderPlayerControls(m);
 }
 
 /* === T\u00c9CNICO EXCEPCI\u00d3N POR D\u00cdA (cambio puntual de t\u00e9cnico en el mismo m\u00f3vil) === */
@@ -1712,7 +1712,7 @@ function rMapa(m,f){
   if(selBds.length)LM2.fitBounds(selBds,{padding:[60,60],maxZoom:16});
   else if(bds.length)LM2.fitBounds(bds,{padding:[35,35]});
 }
-function fm(f,btn){document.querySelectorAll('.mfb').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');MAPA_FILTRO_ACTUAL=f;rMapa(DATA[aM],f);}
+function fm(f,btn){document.querySelectorAll('.mfb').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');MAPA_FILTRO_ACTUAL=f;rMapa(DATA[aM],f);renderPlayerControls(DATA[aM]);}
 
 function toggleMapExp(btn){
   var mc=btn.closest('.mc');
