@@ -366,6 +366,8 @@ var SEL_PARADAS=new Set(); // índices (en m.paradas) de las paradas clickeadas 
 var MAPA_FILTRO_ACTUAL='t';
 var RUTAS_KEY='ctc_rutas_gps_v1';
 var RUTAS_GPS=(function(){try{return JSON.parse(localStorage.getItem(RUTAS_KEY)||'{}');}catch(e){return{};}})();
+var PROA_GATE_KEY='ctc_proa_gate_v1';
+var PROA_GATE=(function(){try{return JSON.parse(localStorage.getItem(PROA_GATE_KEY)||'null');}catch(e){return null;}})();
 var GC={};
 var PRELOADED=false;
 var HIST_INDEX=[],HIST_LOADED=false;
@@ -458,6 +460,42 @@ function hav(la1,lo1,la2,lo2){
 }
 
 /* === GASOLINERAS === */
+var CLIMA_DATOS={};
+async function cargarClima(){
+  try{
+    if(!DATA.length)return;
+    var desde=DATA[0].desde,hasta=DATA[0].hasta;
+    if(!desde||!hasta)return;
+    var toISO=function(f){var p=f.split('/');return p[2]+'-'+p[1]+'-'+p[0];};
+    var url='https://archive-api.open-meteo.com/v1/archive?latitude=-34.6177&longitude=-68.3301&start_date='+toISO(desde)+'&end_date='+toISO(hasta)+'&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,windgusts_10m_max,weathercode&timezone=America%2FArgentina%2FMendoza';
+    var r=await fetch(url);
+    var j=await r.json();
+    if(!j.daily||!j.daily.time)return;
+    CLIMA_DATOS={};
+    j.daily.time.forEach(function(fechaISO,i){
+      var p=fechaISO.split('-');
+      var fechaDDMMAA=p[2]+'/'+p[1]+'/'+p[0];
+      CLIMA_DATOS[fechaDDMMAA]={
+        tMax:Math.round(j.daily.temperature_2m_max[i]),
+        tMin:Math.round(j.daily.temperature_2m_min[i]),
+        precip:j.daily.precipitation_sum[i],
+        vientoMax:Math.round(j.daily.windspeed_10m_max[i]),
+        rafagaMax:Math.round(j.daily.windgusts_10m_max[i]),
+        code:j.daily.weathercode[i]
+      };
+    });
+  }catch(e){CLIMA_DATOS={};}
+}
+function climaIcono(code){
+  if(code===0)return'\u2600\ufe0f';
+  if(code<=3)return'\u26c5';
+  if(code<=48)return'\ud83c\udf2b\ufe0f';
+  if(code<=67)return'\ud83c\udf27\ufe0f';
+  if(code<=77)return'\u2744\ufe0f';
+  if(code<=82)return'\ud83c\udf26\ufe0f';
+  if(code>=95)return'\u26c8\ufe0f';
+  return'\ud83c\udf21\ufe0f';
+}
 async function fetchGas(){
   try{
     var q='[out:json][timeout:30];(node["amenity"="fuel"](around:60000,-34.6177,-68.3301);way["amenity"="fuel"](around:60000,-34.6177,-68.3301););out center;';
@@ -501,6 +539,8 @@ function handleFile(file){
       var borrador=buscarBorrador();
       if(borrador&&confirm('Encontr\u00e9 un borrador guardado de este reporte ('+new Date(borrador.fecha).toLocaleString('es-AR')+') con ediciones sin publicar todav\u00eda.\n\n\u00bfContinuar desde ah\u00ed en vez de empezar de cero?')){
         DATA=borrador.data;GAS=borrador.gas||[];if(borrador.gc)Object.assign(GC,borrador.gc);
+        ld(true,'Consultando clima...');
+        await cargarClima();
         calcAl();render();ld(false);
         iniciarAutoguardado();
         return;
@@ -509,6 +549,8 @@ function handleFile(file){
       await fetchGas();
       ld(true,'Geocodificando domicilios de tecnicos...');
       await geoTecs();
+      ld(true,'Consultando clima...');
+      await cargarClima();
       calcAl();
       render();
       iniciarAutoguardado();
@@ -981,7 +1023,7 @@ function renderPlayerControls(m){
   var horarioHTML='<div style="display:flex;align-items:center;gap:6px;margin:6px 0 2px;font-size:11px;color:var(--tx2);flex-wrap:wrap">'+
     '<span>&#128337; Salida esperada:</span>'+
     '<input type="time" id="horario-salida-input" value="'+(m.horarioSalida||'')+'" '+(SUPERVISOR_MODE?'disabled':'onchange="setHorarioSalida('+aM+',this.value)"')+' style="font-size:11px;padding:3px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf)">'+
-    (SUPERVISOR_MODE?'':'<button onclick="aplicarHorarioATodos()" title="Usar este horario para todos los m\u00f3viles del reporte" style="border:none;background:none;color:var(--ac);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">aplicar a todos</button>')+
+    (SUPERVISOR_MODE?'':(PROA_GATE?'<button onclick="marcarPortonProa()" title="Volver a marcar el port\u00f3n" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">&#128205; port\u00f3n PROA \u2713</button>':'<button onclick="marcarPortonProa()" title="Marcar en el mapa el punto de la calle justo afuera de PROA" style="border:none;background:none;color:var(--ac);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">&#128205; marcar port\u00f3n de PROA</button>'))+
     '<span id="salida-real-badge"></span>'+
     '</div>';
   var ruta=rutaParaMovil(m);
@@ -1027,18 +1069,32 @@ function horarioADia(diaStr,horaStr){
   var t=new Date(iso).getTime();
   return isNaN(t)?null:t;
 }
+function marcarPortonProa(){
+  if(!LM2){toast('Abr\u00ed el mapa primero (eleg\u00ed un d\u00eda con recorrido)');return;}
+  toast('&#128205; Tocá en el mapa el punto de la calle justo afuera de PROA (por donde salen siempre)');
+  LM2.once('click',function(e){
+    PROA_GATE={lat:e.latlng.lat,lon:e.latlng.lng};
+    try{localStorage.setItem(PROA_GATE_KEY,JSON.stringify(PROA_GATE));}catch(err){}
+    toast('\u2713 Port\u00f3n de PROA guardado \u2014 se va a usar para todos los m\u00f3viles');
+    renderPlayerControls(DATA[aM]);
+  });
+}
+function salidaPorPortonProa(dia){
+  if(!PROA_GATE)return null;
+  var ruta=rutaParaMovil(DATA[aM]);
+  var pts=ruta&&ruta[dia];
+  if(!pts||!pts.length||pts[0].length<3)return null;
+  var radioGrados=60/111320; // ~60 metros de tolerancia
+  for(var i=0;i<pts.length;i++){
+    var d=Math.sqrt(Math.pow(pts[i][0]-PROA_GATE.lat,2)+Math.pow(pts[i][1]-PROA_GATE.lon,2));
+    if(d<=radioGrados)return new Date(pts[i][2]).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  }
+  return null;
+}
 function setHorarioSalida(mi,val){
   DATA[mi].horarioSalida=val;
   guardarBorradorAuto();
   actualizarBadgeSalida(DATA[mi]);
-}
-function aplicarHorarioATodos(){
-  var val=(document.getElementById('horario-salida-input')||{}).value;
-  if(!val){toast('Eleg\u00ed primero un horario');return;}
-  DATA.forEach(function(m){m.horarioSalida=val;});
-  guardarBorradorAuto();
-  actualizarBadgeSalida(DATA[aM]);
-  toast('\u2713 Horario aplicado a los '+DATA.length+' m\u00f3viles');
 }
 function sumarMinutosAHora(horaStr,minutos){
   var p=horaStr.split(':');
@@ -1051,19 +1107,23 @@ function actualizarBadgeSalida(m){
   var el=document.getElementById('salida-real-badge');
   if(!el)return;
   if(!m.horarioSalida){el.innerHTML='';return;}
-  var delDia=m.paradas.filter(function(p){return p.fec===aD&&!p.isP&&!p.isPn&&p.hora;});
-  if(!delDia.length){el.innerHTML='';return;}
-  delDia.sort(function(a,b){return a.hora<b.hora?-1:a.hora>b.hora?1:0;});
-  var primera=delDia[0];
-  var esProa=(primera.loc||'').toUpperCase().indexOf('PROA')!==-1;
-  var horaReal=esProa?sumarMinutosAHora(primera.hora,primera.durMin||0):primera.hora;
+  var horaReal=salidaPorPortonProa(aD);
+  var porPorton=!!horaReal;
+  if(!horaReal){
+    var delDia=m.paradas.filter(function(p){return p.fec===aD&&!p.isP&&!p.isPn&&p.hora;});
+    if(!delDia.length){el.innerHTML='';return;}
+    delDia.sort(function(a,b){return a.hora<b.hora?-1:a.hora>b.hora?1:0;});
+    var primera=delDia[0];
+    var esProa=(primera.loc||'').toUpperCase().indexOf('PROA')!==-1;
+    horaReal=esProa?sumarMinutosAHora(primera.hora,primera.durMin||0):primera.hora;
+  }
   var pE=m.horarioSalida.split(':'),pR=horaReal.split(':');
   var diffMin=(parseInt(pR[0],10)*60+parseInt(pR[1],10))-(parseInt(pE[0],10)*60+parseInt(pE[1],10));
   var txt,color;
   if(diffMin>15){txt='&#9888;&#65039; Sali\u00f3 tarde: '+horaReal+' (+'+diffMin+' min)';color='#dc2626';}
   else if(diffMin<-15){txt='Sali\u00f3 temprano: '+horaReal;color='#2563eb';}
   else{txt='&#9989; A horario: '+horaReal;color='#16a34a';}
-  el.innerHTML='<span style="color:'+color+';font-weight:600">'+txt+'</span>';
+  el.innerHTML='<span style="color:'+color+';font-weight:600">'+txt+(porPorton?' <span style="color:var(--tx3);font-weight:400">(por GPS)</span>':'')+'</span>';
 }
 function posicionEnFraccion(frac){
   var pts=PLAYER.pts;
@@ -1668,6 +1728,29 @@ function rMapa(m,f){
       LM2.addControl(searchCtrl);
     }
   }catch(e){console.warn('Buscador no disponible:',e);}
+  try{
+    if(aD!=='todos'&&CLIMA_DATOS[aD]){
+      var c=CLIMA_DATOS[aD];
+      var vientoFuerte=c.rafagaMax>=60;
+      var climaCtrl=L.control({position:'topright'});
+      climaCtrl.onAdd=function(){
+        var div=L.DomUtil.create('div','clima-badge-ctrl');
+        div.style.cssText='background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.25);padding:5px 9px;font-family:sans-serif;font-size:12px;cursor:pointer;margin-top:6px';
+        div.innerHTML='<div>'+climaIcono(c.code)+' '+c.tMax+'&#176;/'+c.tMin+'&#176;'+(vientoFuerte?' &#128168;':'')+'</div>'+
+          '<div class="clima-detalle" style="display:none;margin-top:4px;font-size:11px;color:#6b6760;white-space:nowrap;line-height:1.5">'+
+            'Viento: '+c.vientoMax+' km/h (r\u00e1fagas '+c.rafagaMax+')<br>'+
+            (c.precip>0?'&#127783;&#65039; '+c.precip+' mm':'Sin precipitaciones')+
+          '</div>';
+        L.DomEvent.disableClickPropagation(div);
+        div.onclick=function(){
+          var det=div.querySelector('.clima-detalle');
+          det.style.display=det.style.display==='none'?'block':'none';
+        };
+        return div;
+      };
+      climaCtrl.addTo(LM2);
+    }
+  }catch(e){}
   var aSet={};getAl(m,'todos').filter(function(a){return a.lv==='dn'}).forEach(function(a){aSet[a.loc]=true});
   var ps=pFilt(m).filter(function(p){return p.lat&&p.lon});
   if(f==='l')ps=ps.filter(function(p){return p.durMin>=LM&&!p.isP});
