@@ -978,12 +978,17 @@ function renderPlayerControls(m){
   if(!cont)return;
   detenerReproduccion();
   if(aD==='todos'){cont.innerHTML='';return;}
+  var horarioHTML='<div style="display:flex;align-items:center;gap:6px;margin:6px 0 2px;font-size:11px;color:var(--tx2);flex-wrap:wrap">'+
+    '<span>&#128337; Salida esperada:</span>'+
+    '<input type="time" id="horario-salida-input" value="'+(m.horarioSalida||'')+'" '+(SUPERVISOR_MODE?'disabled':'onchange="setHorarioSalida('+aM+',this.value)"')+' style="font-size:11px;padding:3px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf)">'+
+    '<span id="salida-real-badge"></span>'+
+    '</div>';
   var ruta=rutaParaMovil(m);
   var pts=ruta&&ruta[aD];
-  if(!pts||pts.length<2){cont.innerHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.</div>';return;}
+  if(!pts||pts.length<2){cont.innerHTML=horarioHTML+'<div style="font-size:11px;color:var(--tx3);margin:6px 0">Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.</div>';actualizarBadgeSalida(m);return;}
   var conTiempo=pts[0].length>2&&pts[pts.length-1].length>2;
   var avisoSinHora=conTiempo?'':'<div style="font-size:11px;color:#d97706;margin-bottom:4px">&#9888;&#65039; Este d\u00eda no tiene horarios en el trazado (JSON viejo) \u2014 el auto se va a mover a velocidad pareja, sin reloj real.</div>';
-  cont.innerHTML=avisoSinHora+'<div style="display:flex;align-items:center;gap:6px;margin:8px 0;background:var(--sf2);padding:5px 9px;border-radius:20px;max-width:460px;font-size:11px">'+
+  cont.innerHTML=horarioHTML+avisoSinHora+'<div style="display:flex;align-items:center;gap:6px;margin:8px 0;background:var(--sf2);padding:5px 9px;border-radius:20px;max-width:460px;font-size:11px">'+
     '<button id="btn-playpause" onclick="togglePlayPause()" title="Reproducir/Pausar" style="border:none;background:'+m.color+';color:#fff;width:24px;height:24px;min-width:24px;border-radius:50%;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center">&#9654;&#65039;</button>'+
     '<button onclick="detenerReproduccion()" title="Detener" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:12px;padding:0 2px">&#9632;&#65039;</button>'+
     '<input type="range" id="rec-scrub" min="0" max="1000" value="0" style="flex:1;min-width:70px;height:3px;accent-color:'+m.color+'" oninput="seekReproduccion(this.value)">'+
@@ -996,7 +1001,13 @@ function renderPlayerControls(m){
   PLAYER.conTiempo=conTiempo;
   PLAYER.t0=PLAYER.conTiempo?new Date(pts[0][2]).getTime():0;
   PLAYER.t1=PLAYER.conTiempo?new Date(pts[pts.length-1][2]).getTime():0;
-  PLAYER.frac=0;PLAYER.pausado=true;
+  PLAYER.pausado=true;
+  var fracInicial=0;
+  if(PLAYER.conTiempo&&m.horarioSalida){
+    var tEsp=horarioADia(aD,m.horarioSalida);
+    if(tEsp!=null&&PLAYER.t1>PLAYER.t0)fracInicial=Math.max(0,Math.min((tEsp-PLAYER.t0)/(PLAYER.t1-PLAYER.t0),1));
+  }
+  PLAYER.frac=fracInicial;
   var carIcon=L.divIcon({className:'',html:
     '<div style="position:relative;width:22px;height:22px">'+
       '<div style="font-size:20px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))">&#128663;</div>'+
@@ -1006,7 +1017,34 @@ function renderPlayerControls(m){
   PLAYER.marker=L.marker([pts[0][0],pts[0][1]],{icon:carIcon,zIndexOffset:3000}).addTo(LM2);
   var elMk=PLAYER.marker.getElement();
   PLAYER.timeEl=elMk?elMk.querySelector('.player-car-time'):null;
-  aplicarFraccion(0);
+  aplicarFraccion(fracInicial);
+  actualizarBadgeSalida(m);
+}
+function horarioADia(diaStr,horaStr){
+  var partesDia=diaStr.split('/');if(partesDia.length!==3)return null;
+  var iso=partesDia[2]+'-'+partesDia[1]+'-'+partesDia[0]+'T'+horaStr+':00-03:00';
+  var t=new Date(iso).getTime();
+  return isNaN(t)?null:t;
+}
+function setHorarioSalida(mi,val){
+  DATA[mi].horarioSalida=val;
+  guardarBorradorAuto();
+  actualizarBadgeSalida(DATA[mi]);
+}
+function actualizarBadgeSalida(m){
+  var el=document.getElementById('salida-real-badge');
+  if(!el)return;
+  if(!m.horarioSalida){el.innerHTML='';return;}
+  var delDia=m.paradas.filter(function(p){return p.fec===aD&&!p.isP&&!p.isPn&&p.hora;});
+  if(!delDia.length){el.innerHTML='';return;}
+  var horaReal=delDia.reduce(function(a,p){return p.hora<a?p.hora:a;},delDia[0].hora);
+  var pE=m.horarioSalida.split(':'),pR=horaReal.split(':');
+  var diffMin=(parseInt(pR[0],10)*60+parseInt(pR[1],10))-(parseInt(pE[0],10)*60+parseInt(pE[1],10));
+  var txt,color;
+  if(diffMin>15){txt='&#9888;&#65039; Sali\u00f3 tarde: '+horaReal+' (+'+diffMin+' min)';color='#dc2626';}
+  else if(diffMin<-15){txt='Sali\u00f3 temprano: '+horaReal;color='#2563eb';}
+  else{txt='&#9989; A horario: '+horaReal;color='#16a34a';}
+  el.innerHTML='<span style="color:'+color+';font-weight:600">'+txt+'</span>';
 }
 function posicionEnFraccion(frac){
   var pts=PLAYER.pts;
