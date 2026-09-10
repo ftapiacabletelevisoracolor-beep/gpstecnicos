@@ -1022,7 +1022,7 @@ function renderPlayerControls(m){
   if(aD==='todos'){cont.innerHTML='';return;}
   var horarioHTML='<div style="display:flex;align-items:center;gap:6px;margin:6px 0 2px;font-size:11px;color:var(--tx2);flex-wrap:wrap">'+
     '<span>&#128337; Salida esperada:</span>'+
-    '<input type="time" id="horario-salida-input" value="'+(m.horarioSalida||'')+'" '+(SUPERVISOR_MODE?'disabled':'onchange="setHorarioSalida('+aM+',this.value)"')+' style="font-size:11px;padding:3px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf)">'+
+    '<input type="time" id="horario-salida-input" value="'+(getHorarioSalidaDia(m,aD)||'')+'" '+(SUPERVISOR_MODE?'disabled':'onchange="setHorarioSalida('+aM+',this.value)"')+' style="font-size:11px;padding:3px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf)">'+
     (SUPERVISOR_MODE?'':(PROA_GATE?'<button onclick="marcarPortonProa()" title="Volver a marcar el port\u00f3n" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">&#128205; port\u00f3n PROA \u2713</button>':'<button onclick="marcarPortonProa()" title="Marcar en el mapa el punto de la calle justo afuera de PROA" style="border:none;background:none;color:var(--ac);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">&#128205; marcar port\u00f3n de PROA</button>'))+
     '<span id="salida-real-badge"></span>'+
     '</div>';
@@ -1046,8 +1046,9 @@ function renderPlayerControls(m){
   PLAYER.t1=PLAYER.conTiempo?new Date(pts[pts.length-1][2]).getTime():0;
   PLAYER.pausado=true;
   var fracInicial=0;
-  if(PLAYER.conTiempo&&m.horarioSalida){
-    var tEsp=horarioADia(aD,m.horarioSalida);
+  var horarioDia=getHorarioSalidaDia(m,aD);
+  if(PLAYER.conTiempo&&horarioDia){
+    var tEsp=horarioADia(aD,horarioDia);
     if(tEsp!=null&&PLAYER.t1>PLAYER.t0)fracInicial=Math.max(0,Math.min((tEsp-PLAYER.t0)/(PLAYER.t1-PLAYER.t0),1));
   }
   PLAYER.frac=fracInicial;
@@ -1062,6 +1063,12 @@ function renderPlayerControls(m){
   PLAYER.timeEl=elMk?elMk.querySelector('.player-car-time'):null;
   aplicarFraccion(fracInicial);
   actualizarBadgeSalida(m);
+}
+function horaLocal24(fechaOMs){
+  var d=fechaOMs instanceof Date?fechaOMs:new Date(fechaOMs);
+  var hh=d.getHours();hh=(hh<10?'0':'')+hh;
+  var mm=d.getMinutes();mm=(mm<10?'0':'')+mm;
+  return hh+':'+mm;
 }
 function horarioADia(diaStr,horaStr){
   var partesDia=diaStr.split('/');if(partesDia.length!==3)return null;
@@ -1087,14 +1094,20 @@ function salidaPorPortonProa(dia){
   var radioGrados=60/111320; // ~60 metros de tolerancia
   for(var i=0;i<pts.length;i++){
     var d=Math.sqrt(Math.pow(pts[i][0]-PROA_GATE.lat,2)+Math.pow(pts[i][1]-PROA_GATE.lon,2));
-    if(d<=radioGrados)return new Date(pts[i][2]).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    if(d<=radioGrados)return horaLocal24(new Date(pts[i][2]));
   }
   return null;
 }
+function getHorarioSalidaDia(m,dia){
+  if(m.horarioSalidaPorDia&&m.horarioSalidaPorDia[dia]!=null&&m.horarioSalidaPorDia[dia]!=='')return m.horarioSalidaPorDia[dia];
+  return m.horarioSalida||''; // compatibilidad con lo guardado antes (un solo horario para todo el móvil)
+}
 function setHorarioSalida(mi,val){
-  DATA[mi].horarioSalida=val;
+  var m=DATA[mi];
+  if(!m.horarioSalidaPorDia)m.horarioSalidaPorDia={};
+  m.horarioSalidaPorDia[aD]=val;
   guardarBorradorAuto();
-  actualizarBadgeSalida(DATA[mi]);
+  actualizarBadgeSalida(m);
 }
 function sumarMinutosAHora(horaStr,minutos){
   var p=horaStr.split(':');
@@ -1106,7 +1119,8 @@ function sumarMinutosAHora(horaStr,minutos){
 function actualizarBadgeSalida(m){
   var el=document.getElementById('salida-real-badge');
   if(!el)return;
-  if(!m.horarioSalida){el.innerHTML='';return;}
+  var horarioDia=getHorarioSalidaDia(m,aD);
+  if(!horarioDia){el.innerHTML='';return;}
   var horaReal=salidaPorPortonProa(aD);
   var porPorton=!!horaReal;
   if(!horaReal){
@@ -1117,7 +1131,7 @@ function actualizarBadgeSalida(m){
     var esProa=(primera.loc||'').toUpperCase().indexOf('PROA')!==-1;
     horaReal=esProa?sumarMinutosAHora(primera.hora,primera.durMin||0):primera.hora;
   }
-  var pE=m.horarioSalida.split(':'),pR=horaReal.split(':');
+  var pE=horarioDia.split(':'),pR=horaReal.split(':');
   var diffMin=(parseInt(pR[0],10)*60+parseInt(pR[1],10))-(parseInt(pE[0],10)*60+parseInt(pE[1],10));
   var txt,color;
   if(diffMin>15){txt='&#9888;&#65039; Sali\u00f3 tarde: '+horaReal+' (+'+diffMin+' min)';color='#dc2626';}
@@ -1133,11 +1147,11 @@ function posicionEnFraccion(frac){
       var ta=new Date(pts[i][2]).getTime(),tb=new Date(pts[i+1][2]).getTime();
       if(tObj>=ta&&tObj<=tb){
         var f=tb>ta?(tObj-ta)/(tb-ta):0;
-        return{pos:[pts[i][0]+(pts[i+1][0]-pts[i][0])*f,pts[i][1]+(pts[i+1][1]-pts[i][1])*f],hora:new Date(tObj).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})};
+        return{pos:[pts[i][0]+(pts[i+1][0]-pts[i][0])*f,pts[i][1]+(pts[i+1][1]-pts[i][1])*f],hora:horaLocal24(new Date(tObj))};
       }
     }
     var last=pts[pts.length-1];
-    return{pos:[last[0],last[1]],hora:new Date(PLAYER.t1).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})};
+    return{pos:[last[0],last[1]],hora:horaLocal24(new Date(PLAYER.t1))};
   }
   var idxF=frac*(pts.length-1),i0=Math.floor(idxF),f2=idxF-i0,p0=pts[Math.min(i0,pts.length-1)],p1=pts[Math.min(i0+1,pts.length-1)];
   return{pos:[p0[0]+(p1[0]-p0[0])*f2,p0[1]+(p1[1]-p0[1])*f2],hora:''};
@@ -1810,7 +1824,7 @@ function rMapa(m,f){
           linea.bindTooltip('',{sticky:true,direction:'top',opacity:.92,className:'tooltip-hora'});
           linea.on('mousemove',function(e){
             var cerc=puntoMasCercano(real,e.latlng);
-            if(cerc)this.setTooltipContent('&#128337; '+new Date(cerc[2]).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
+            if(cerc)this.setTooltipContent('&#128337; '+horaLocal24(new Date(cerc[2])));
           });
         }
       }else if(pts.length>1){
