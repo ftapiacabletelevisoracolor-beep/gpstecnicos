@@ -981,7 +981,9 @@ function renderPlayerControls(m){
   var ruta=rutaParaMovil(m);
   var pts=ruta&&ruta[aD];
   if(!pts||pts.length<2){cont.innerHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.</div>';return;}
-  cont.innerHTML='<div style="display:flex;align-items:center;gap:6px;margin:8px 0;background:var(--sf2);padding:5px 9px;border-radius:20px;max-width:460px;font-size:11px">'+
+  var conTiempo=pts[0].length>2&&pts[pts.length-1].length>2;
+  var avisoSinHora=conTiempo?'':'<div style="font-size:11px;color:#d97706;margin-bottom:4px">&#9888;&#65039; Este d\u00eda no tiene horarios en el trazado (JSON viejo) \u2014 el auto se va a mover a velocidad pareja, sin reloj real.</div>';
+  cont.innerHTML=avisoSinHora+'<div style="display:flex;align-items:center;gap:6px;margin:8px 0;background:var(--sf2);padding:5px 9px;border-radius:20px;max-width:460px;font-size:11px">'+
     '<button id="btn-playpause" onclick="togglePlayPause()" title="Reproducir/Pausar" style="border:none;background:'+m.color+';color:#fff;width:24px;height:24px;min-width:24px;border-radius:50%;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center">&#9654;&#65039;</button>'+
     '<button onclick="detenerReproduccion()" title="Detener" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:12px;padding:0 2px">&#9632;&#65039;</button>'+
     '<input type="range" id="rec-scrub" min="0" max="1000" value="0" style="flex:1;min-width:70px;height:3px;accent-color:'+m.color+'" oninput="seekReproduccion(this.value)">'+
@@ -991,7 +993,7 @@ function renderPlayerControls(m){
     '<span id="rec-vel-label" style="color:var(--tx3);min-width:24px">1x</span>'+
     '</div>';
   PLAYER.pts=pts;
-  PLAYER.conTiempo=pts[0].length>2&&pts[pts.length-1].length>2;
+  PLAYER.conTiempo=conTiempo;
   PLAYER.t0=PLAYER.conTiempo?new Date(pts[0][2]).getTime():0;
   PLAYER.t1=PLAYER.conTiempo?new Date(pts[pts.length-1][2]).getTime():0;
   PLAYER.frac=0;PLAYER.pausado=true;
