@@ -989,7 +989,7 @@ function renderPlayerControls(m){
     '<input type="range" id="rec-scrub" min="0" max="1000" value="0" style="flex:1;min-width:70px;height:3px;accent-color:'+m.color+'" oninput="seekReproduccion(this.value)">'+
     '<span id="rec-reloj" style="font-family:var(--fm);min-width:36px;color:var(--tx2)">\u2014</span>'+
     '<span style="color:var(--tx3)">&#9881;&#65039;</span>'+
-    '<input type="range" id="rec-velocidad" min="0.25" max="6" step="0.25" value="1" style="width:56px;height:3px" oninput="cambiarVelocidad(this.value)" title="Velocidad">'+
+    '<input type="range" id="rec-velocidad" min="0.05" max="6" step="0.05" value="1" style="width:56px;height:3px" oninput="cambiarVelocidad(this.value)" title="Velocidad">'+
     '<span id="rec-vel-label" style="color:var(--tx3);min-width:24px">1x</span>'+
     '</div>';
   PLAYER.pts=pts;
