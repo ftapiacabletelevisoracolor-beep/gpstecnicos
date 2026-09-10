@@ -1536,7 +1536,7 @@ function tecDiaHTML(m,dia){
   var esOv=!!(ov&&ov.length);
   var chips=activos.map(function(t,i){
     return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;background:var(--sf2);border:1px solid var(--bd);font-size:11px;color:var(--tx2)">'+(t.nombre||t.raw)+
-      (esOv?' <a href="javascript:void(0)" onclick="rmTecOv('+aM+',\''+dia+'\','+i+')" title="Quitar" style="color:#dc2626;font-weight:700;text-decoration:none">&times;</a>':'')+
+      (esOv&&!SUPERVISOR_MODE?' <a href="javascript:void(0)" onclick="rmTecOv('+aM+',\''+dia+'\','+i+')" title="Quitar" style="color:#dc2626;font-weight:700;text-decoration:none">&times;</a>':'')+
       '</span>';
   }).join('');
   return '<div style="margin:-4px 0 1.25rem;padding:9px 12px;background:var(--sf2);border:1px dashed var(--bd);border-radius:10px;font-size:12px">'+
@@ -1545,11 +1545,12 @@ function tecDiaHTML(m,dia){
     (chips||'<span style="color:var(--wn)">ninguno</span>')+
     (esOv?' <span style="font-size:10px;color:#9333ea;font-weight:600">(excepci\u00f3n cargada)</span>':'')+
     '</div>'+
+    (SUPERVISOR_MODE?'':(
     '<div style="display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap">'+
     '<input list="tecDBlist" id="tdinput" placeholder="\u00bfTrabaj\u00f3 otro t\u00e9cnico este d\u00eda? Escrib\u00ed su apellido..." style="flex:1;min-width:180px;padding:5px 9px;border:1px solid var(--bd);border-radius:6px;font-size:12px;background:var(--sf);color:var(--tx)">'+
     '<button class="mfb" onclick="addTecOv('+aM+',\''+dia+'\')">+ Agregar</button>'+
     (esOv?'<button class="mfb" onclick="resetTecOv('+aM+',\''+dia+'\')">Restablecer</button>':'')+
-    '</div></div>';
+    '</div>'))+'</div>';
 }
 function updTecDia(m){var w=document.getElementById('tdw');if(w)w.innerHTML=tecDiaHTML(m,aD);}
 function addTecOv(mi,dia){
@@ -1973,11 +1974,13 @@ function renderHistList(q){
 function loadHistReport(path){
   if(!path)return;
   ld(true,'Abriendo reporte...');
-  fetch(path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('404');return r.json();}).then(function(j){
+  fetch(path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('404');return r.json();}).then(async function(j){
     DATA=j.data||[];GAS=j.gas||[];
     if(j.gc)Object.assign(GC,j.gc);
     aD='todos';aM=0;
     calcAl();
+    ld(true,'Consultando clima...');
+    await cargarClima();
     // marca autom\u00e1ticamente como visto al abrirlo
     var idBase=path.replace(/^reportes\//,'').replace(/\.json$/,'');
     var v=getVistos();if(!v[idBase]){v[idBase]=Date.now();try{localStorage.setItem(VISTOS_KEY,JSON.stringify(v));}catch(e){}}
@@ -2282,7 +2285,7 @@ function resetDash(){dCharts();DATA=[];aM=0;aD='todos';document.getElementById('
 
 /* === AUTO-RENDER si es archivo exportado === */
 /*__PRELOAD__*/
-window.addEventListener('load',function(){
+window.addEventListener('load',async function(){
   if(SUPERVISOR_MODE){
     ['btn-tecnico','btn-importar-cruce','btn-importar-rutas','btn-exportar-excel','btn-gh-config','btn-nap-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
@@ -2303,6 +2306,8 @@ window.addEventListener('load',function(){
     if(typeof GAS!=='undefined'&&GAS&&GAS.length>0){} // ya asignadas
     calcAl();
     render();
+    await cargarClima();
+    renderPlayerControls(DATA[aM]);
   }else if(SUPERVISOR_MODE){
     openHistorial();
   }
