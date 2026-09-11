@@ -1020,12 +1020,23 @@ function renderPlayerControls(m){
   if(!cont)return;
   detenerReproduccion();
   if(aD==='todos'){cont.innerHTML='';return;}
-  var horarioHTML='<div style="display:flex;align-items:center;gap:6px;margin:6px 0 2px;font-size:11px;color:var(--tx2);flex-wrap:wrap">'+
-    '<span>&#128337; Salida esperada:</span>'+
-    '<input type="time" id="horario-salida-input" value="'+(getHorarioSalidaDia(m,aD)||'')+'" '+(SUPERVISOR_MODE?'disabled':'onchange="setHorarioSalida('+aM+',this.value)"')+' style="font-size:11px;padding:3px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf)">'+
-    (SUPERVISOR_MODE?'':(PROA_GATE?'<button onclick="marcarPortonProa()" title="Volver a marcar el port\u00f3n" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">&#128205; port\u00f3n PROA \u2713</button>':'<button onclick="marcarPortonProa()" title="Marcar en el mapa el punto de la calle justo afuera de PROA" style="border:none;background:none;color:var(--ac);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">&#128205; marcar port\u00f3n de PROA</button>'))+
-    '<span id="salida-real-badge"></span>'+
-    '</div>';
+  var horarioHTML='';
+  if(!m.torre){
+    horarioHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">Este m\u00f3vil no tiene Torre de Control asignada \u2014 no se controla horario de salida.</div>';
+  }else if(m.horarioExcepcion&&m.horarioExcepcion[aD]){
+    horarioHTML='<div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:11px;color:var(--tx2)">'+
+      '<span style="color:#9333ea">&#128681; Hoy trabaj\u00f3 desde otra sede \u2014 sin control de horario</span>'+
+      (SUPERVISOR_MODE?'':'<button onclick="toggleExcepcionDia('+aM+')" style="border:none;background:none;color:var(--ac);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">volver a habilitar</button>')+
+      '</div>';
+  }else{
+    horarioHTML='<div style="display:flex;align-items:center;gap:6px;margin:6px 0 2px;font-size:11px;color:var(--tx2);flex-wrap:wrap">'+
+      '<span>&#128337; Salida esperada:</span>'+
+      '<input type="time" id="horario-salida-input" value="'+(getHorarioSalidaDia(m,aD)||'')+'" '+(SUPERVISOR_MODE?'disabled':'onchange="setHorarioSalida('+aM+',this.value)"')+' style="font-size:11px;padding:3px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf)">'+
+      (SUPERVISOR_MODE?'':(PROA_GATE?'<button onclick="marcarPortonProa()" title="Volver a marcar el port\u00f3n" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">&#128205; port\u00f3n PROA \u2713</button>':'<button onclick="marcarPortonProa()" title="Marcar en el mapa el punto de la calle justo afuera de PROA" style="border:none;background:none;color:var(--ac);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">&#128205; marcar port\u00f3n de PROA</button>'))+
+      '<span id="salida-real-badge"></span>'+
+      (SUPERVISOR_MODE?'':'<button onclick="toggleExcepcionDia('+aM+')" title="Hoy este m\u00f3vil trabaj\u00f3 desde otra sede, no controlar horario" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:11px;text-decoration:underline;padding:0;margin-left:auto">hoy trabaj\u00f3 en otra sede</button>')+
+      '</div>';
+  }
   var ruta=rutaParaMovil(m);
   var pts=ruta&&ruta[aD];
   if(!pts||pts.length<2){cont.innerHTML=horarioHTML+'<div style="font-size:11px;color:var(--tx3);margin:6px 0">Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.</div>';actualizarBadgeSalida(m);return;}
@@ -1108,6 +1119,13 @@ function setHorarioSalida(mi,val){
   m.horarioSalidaPorDia[aD]=val;
   guardarBorradorAuto();
   actualizarBadgeSalida(m);
+}
+function toggleExcepcionDia(mi){
+  var m=DATA[mi];
+  if(!m.horarioExcepcion)m.horarioExcepcion={};
+  m.horarioExcepcion[aD]=!m.horarioExcepcion[aD];
+  guardarBorradorAuto();
+  renderPlayerControls(m);
 }
 function sumarMinutosAHora(horaStr,minutos){
   var p=horaStr.split(':');
