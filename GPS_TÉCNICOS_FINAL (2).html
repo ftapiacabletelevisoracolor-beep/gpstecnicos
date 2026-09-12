@@ -1115,6 +1115,10 @@ function renderPlayerControls(m){
   PLAYER.t1=t1;
   PLAYER.pausado=true;
   var fracInicial=0;
+  if(TRAMO_SEL>=0&&legs[TRAMO_SEL]&&conTiempo&&t1>t0){
+    var tsIni=fechaHoraATs(legs[TRAMO_SEL].from.fec,legs[TRAMO_SEL].from.hora);
+    if(tsIni!=null)fracInicial=Math.max(0,Math.min(1,(tsIni-t0)/(t1-t0)));
+  }
   PLAYER.frac=fracInicial;
   var carIcon=L.divIcon({className:'',html:
     '<div style="position:relative;width:22px;height:22px">'+
