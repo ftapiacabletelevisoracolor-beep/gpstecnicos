@@ -363,6 +363,8 @@ var PKW=['rafael ruiz daudet','proa'];
 var CLR=['#2563eb','#16a34a','#d97706','#7c3aed','#dc2626','#0891b2','#db2777','#b45309'];
 var DATA=[],aM=0,aD='todos',CI={},LM2=null,GAS=[];
 var SEL_PARADAS=new Set(); // índices (en m.paradas) de las paradas clickeadas para resaltar en el mapa
+var TRAMO_SEL=-1; // índice del tramo (entre parada N y N+1) resaltado en el reproductor, -1 = ninguno
+var RUTA_DIA_LAYERS={}; // día -> polyline base dibujada por rMapa, para poder atenuarla al resaltar un tramo
 var MAPA_FILTRO_ACTUAL='t';
 var RUTAS_KEY='ctc_rutas_gps_v1';
 var RUTAS_GPS=(function(){try{return JSON.parse(localStorage.getItem(RUTAS_KEY)||'{}');}catch(e){return{};}})();
@@ -1011,22 +1013,97 @@ function puntoMasCercano(pts,latlng){
   });
   return best;
 }
+function puntoMasCercanoIdx(pts,latlng){
+  var best=-1,bestD=Infinity;
+  for(var i=0;i<pts.length;i++){
+    var d=(pts[i][0]-latlng.lat)*(pts[i][0]-latlng.lat)+(pts[i][1]-latlng.lng)*(pts[i][1]-latlng.lng);
+    if(d<bestD){bestD=d;best=i;}
+  }
+  return best;
+}
+function fechaHoraATs(diaStr,horaStr){
+  var partesDia=(diaStr||'').split('/');if(partesDia.length!==3||!horaStr)return null;
+  var iso=partesDia[2]+'-'+partesDia[1]+'-'+partesDia[0]+'T'+horaStr+':00-03:00';
+  var t=new Date(iso).getTime();
+  return isNaN(t)?null:t;
+}
+/* === TRAMOS (paradas consecutivas del día, para resaltar un solo segmento de la ruta) === */
+function tramosDelDia(m,dia){
+  var ps=m.paradas.filter(function(p){return p.fec===dia&&p.lat&&p.lon;}).sort(function(a,b){return a.hora<b.hora?-1:a.hora>b.hora?1:0;});
+  var legs=[];
+  for(var i=0;i<ps.length-1;i++)legs.push({from:ps[i],to:ps[i+1]});
+  return legs;
+}
+function toggleTramo(idx){
+  TRAMO_SEL=(TRAMO_SEL===idx)?-1:idx;
+  rMapa(DATA[aM],MAPA_FILTRO_ACTUAL);
+  renderPlayerControls(DATA[aM]);
+}
+function dibujarTramoResaltado(m,leg){
+  var ruta=rutaParaMovil(m);
+  var pts=ruta&&ruta[aD];
+  if(!pts||pts.length<2)return;
+  var i0=puntoMasCercanoIdx(pts,{lat:leg.from.lat,lng:leg.from.lon});
+  var i1=puntoMasCercanoIdx(pts,{lat:leg.to.lat,lng:leg.to.lon});
+  if(i0<0||i1<0)return;
+  if(i0>i1){var tmp=i0;i0=i1;i1=tmp;}
+  var seg=pts.slice(i0,i1+1).map(function(p){return[p[0],p[1]];});
+  if(seg.length<2)seg=[[leg.from.lat,leg.from.lon],[leg.to.lat,leg.to.lon]];
+  var linea=L.polyline(seg,{color:'#3C3489',weight:6,opacity:.95}).addTo(LM2);
+  linea.bringToFront();
+  LM2.fitBounds(seg,{padding:[60,60],maxZoom:16});
+}
 /* === REPRODUCTOR DE RECORRIDO (autito animado sobre la ruta real) === */
 var PLAYER={activo:false,marker:null,raf:null,pts:null,conTiempo:false,t0:0,t1:0,frac:0,pausado:true,tAnimBase:0,velocidad:1,duracionBase:30000,timeEl:null};
 function renderPlayerControls(m){
   var cont=document.getElementById('player-ctrl');
   if(!cont)return;
   detenerReproduccion();
-  if(aD==='todos'){cont.innerHTML='';return;}
+  if(aD==='todos'){cont.innerHTML='';TRAMO_SEL=-1;return;}
   var ruta=rutaParaMovil(m);
   var pts=ruta&&ruta[aD];
-  if(!pts||pts.length<2){cont.innerHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.</div>';return;}
+  if(!pts||pts.length<2){cont.innerHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.</div>';TRAMO_SEL=-1;return;}
   var conTiempo=pts[0].length>2&&pts[pts.length-1].length>2;
+  var t0=conTiempo?new Date(pts[0][2]).getTime():0;
+  var t1=conTiempo?new Date(pts[pts.length-1][2]).getTime():0;
   var avisoSinHora=conTiempo?'':'<div style="font-size:11px;color:#d97706;margin-bottom:4px">&#9888;&#65039; Este d\u00eda no tiene horarios en el trazado (JSON viejo) \u2014 el auto se va a mover a velocidad pareja, sin reloj real.</div>';
-  cont.innerHTML=avisoSinHora+'<div style="display:flex;align-items:center;gap:6px;margin:8px 0;background:var(--sf2);padding:5px 9px;border-radius:20px;max-width:460px;font-size:11px">'+
+
+  var legs=tramosDelDia(m,aD);
+  var stopsDia=[];
+  legs.forEach(function(l,i){if(i===0)stopsDia.push(l.from);stopsDia.push(l.to);});
+  if(!stopsDia.length)stopsDia=m.paradas.filter(function(p){return p.fec===aD&&p.lat&&p.lon;}).sort(function(a,b){return a.hora<b.hora?-1:a.hora>b.hora?1:0;});
+
+  var tramosHTML='';
+  if(legs.length){
+    tramosHTML='<div style="max-height:210px;overflow-y:auto;margin:8px 0;display:flex;flex-direction:column;gap:5px">'+
+      legs.map(function(leg,i){
+        var on=TRAMO_SEL===i;
+        return '<div onclick="toggleTramo('+i+')" style="cursor:pointer;border:1px solid '+(on?m.color:'var(--bd)')+';background:'+(on?m.color+'1a':'var(--sf)')+';border-radius:8px;padding:6px 10px;font-size:11px">'+
+          '<div style="font-weight:600;color:var(--tx)">Parada '+(leg.from.n||'?')+' &#8594; Parada '+(leg.to.n||'?')+'</div>'+
+          '<div style="color:var(--tx2);margin-top:2px">'+leg.from.hora+' \u2192 '+leg.to.hora+' &middot; '+(leg.to.dist!=null?leg.to.dist+' km':'')+'</div>'+
+          '<div style="color:var(--tx3);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(leg.to.loc||'')+'</div>'+
+        '</div>';
+      }).join('')+
+    '</div>';
+  }
+
+  var marksHTML='';
+  if(conTiempo&&t1>t0){
+    marksHTML=stopsDia.map(function(p){
+      var ts=fechaHoraATs(p.fec,p.hora);
+      if(ts==null)return '';
+      var pct=Math.max(0,Math.min(1,(ts-t0)/(t1-t0)))*100;
+      return '<div onclick="seekReproduccion('+(pct*10)+')" title="Parada '+(p.n||'')+' \u2014 '+p.hora+'" style="position:absolute;left:'+pct+'%;top:0;width:12px;height:12px;border-radius:50%;background:'+m.color+';border:1.5px solid var(--sf);transform:translate(-50%,-1px);font-size:7px;line-height:1;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto">'+(p.n||'')+'</div>';
+    }).join('');
+  }
+
+  cont.innerHTML=avisoSinHora+tramosHTML+'<div style="display:flex;align-items:center;gap:6px;margin:8px 0;background:var(--sf2);padding:5px 9px;border-radius:20px;max-width:460px;font-size:11px">'+
     '<button id="btn-playpause" onclick="togglePlayPause()" title="Reproducir/Pausar" style="border:none;background:'+m.color+';color:#fff;width:24px;height:24px;min-width:24px;border-radius:50%;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center">&#9654;&#65039;</button>'+
     '<button onclick="detenerReproduccion()" title="Detener" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:12px;padding:0 2px">&#9632;&#65039;</button>'+
-    '<input type="range" id="rec-scrub" min="0" max="1000" value="0" style="flex:1;min-width:70px;height:3px;accent-color:'+m.color+'" oninput="seekReproduccion(this.value)">'+
+    '<div style="position:relative;flex:1;min-width:70px;display:flex;align-items:center">'+
+      '<input type="range" id="rec-scrub" min="0" max="1000" value="0" style="width:100%;height:3px;accent-color:'+m.color+'" oninput="seekReproduccion(this.value)">'+
+      '<div style="position:absolute;left:0;right:0;top:-1px;height:12px;pointer-events:none">'+marksHTML+'</div>'+
+    '</div>'+
     '<span id="rec-reloj" style="font-family:var(--fm);min-width:36px;color:var(--tx2)">\u2014</span>'+
     '<span style="color:var(--tx3)">&#9881;&#65039;</span>'+
     '<input type="range" id="rec-velocidad" min="0.05" max="6" step="0.05" value="1" style="width:56px;height:3px" oninput="cambiarVelocidad(this.value)" title="Velocidad">'+
@@ -1034,8 +1111,8 @@ function renderPlayerControls(m){
     '</div>';
   PLAYER.pts=pts;
   PLAYER.conTiempo=conTiempo;
-  PLAYER.t0=PLAYER.conTiempo?new Date(pts[0][2]).getTime():0;
-  PLAYER.t1=PLAYER.conTiempo?new Date(pts[pts.length-1][2]).getTime():0;
+  PLAYER.t0=t0;
+  PLAYER.t1=t1;
   PLAYER.pausado=true;
   var fracInicial=0;
   PLAYER.frac=fracInicial;
@@ -1049,6 +1126,16 @@ function renderPlayerControls(m){
   var elMk=PLAYER.marker.getElement();
   PLAYER.timeEl=elMk?elMk.querySelector('.player-car-time'):null;
   aplicarFraccion(fracInicial);
+  if(TRAMO_SEL>=0){
+    var legAct=legs[TRAMO_SEL];
+    if(legAct){
+      var baseLinea=RUTA_DIA_LAYERS[aD];
+      if(baseLinea)baseLinea.setStyle({opacity:.12});
+      dibujarTramoResaltado(m,legAct);
+    }else{
+      TRAMO_SEL=-1;
+    }
+  }
 }
 function horaLocal24(fechaOMs){
   var d=fechaOMs instanceof Date?fechaOMs:new Date(fechaOMs);
@@ -1125,7 +1212,7 @@ function detenerReproduccion(){
   if(PLAYER.marker){try{LM2.removeLayer(PLAYER.marker);}catch(e){}}
   PLAYER={activo:false,marker:null,raf:null,pts:null,conTiempo:false,t0:0,t1:0,frac:0,pausado:true,tAnimBase:0,velocidad:1,duracionBase:30000,timeEl:null};
 }
-function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
+function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();TRAMO_SEL=-1;document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
 function eliminarDia(mi,dia){
   var m=DATA[mi];
   var cant=m.paradas.filter(function(p){return p.fec===dia}).length;
@@ -1439,6 +1526,7 @@ function updKpis(m){
 
 function chDay(d,btn){
   aD=d;
+  TRAMO_SEL=-1;
   document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
   var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
   if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
@@ -1630,6 +1718,7 @@ function rMapa(m,f){
   if(LM2){try{LM2.remove();}catch(e){}LM2=null;}
   var el=document.getElementById('mmap');if(!el)return;
   LM2=L.map('mmap');
+  RUTA_DIA_LAYERS={};
   // Fix: leaflet-geosearch resetea los íconos — restaurar paths correctos
   L.Icon.Default.mergeOptions({
     iconRetinaUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -1738,6 +1827,7 @@ function rMapa(m,f){
       var linea=null;
       if(real&&real.length>1){
         linea=L.polyline(real,{color:m.color,weight:3,opacity:.75}).addTo(LM2).bindPopup('Recorrido real registrado por GPS \u2014 '+dia);
+        RUTA_DIA_LAYERS[dia]=linea;
         if(real[0].length>2){
           linea.bindTooltip('',{sticky:true,direction:'top',opacity:.92,className:'tooltip-hora'});
           linea.on('mousemove',function(e){
@@ -1747,6 +1837,7 @@ function rMapa(m,f){
         }
       }else if(pts.length>1){
         linea=L.polyline(pts.map(function(p){return[p.lat,p.lon];}),{color:m.color,weight:2.5,opacity:.4,dashArray:'6,4'}).addTo(LM2);
+        RUTA_DIA_LAYERS[dia]=linea;
       }
       if(linea&&typeof L.polylineDecorator!=='undefined'){
         L.polylineDecorator(linea,{patterns:[{offset:'8%',repeat:'9%',symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:m.color,weight:2,opacity:.9}})}]}).addTo(LM2);
