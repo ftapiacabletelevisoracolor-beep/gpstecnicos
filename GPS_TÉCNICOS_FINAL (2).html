@@ -644,6 +644,7 @@ function parseSheet(sheet,name,idx){
       cli:sv(C.cli>=0?row[C.cli]:''),
       trab:sv(C.trab>=0?row[C.trab]:''),
       obs:sv(C.conf>=0?row[C.conf]:''),
+      conf:sv(C.conf>=0?row[C.conf]:''),
       isP:isP,isPn:isPn,dA:null,gA:null
     });
   }
@@ -1690,7 +1691,10 @@ function guardarEdicionParada(){
   p.trab=document.getElementById('pe-trabajo').value;
   p.conf=document.getElementById('pe-conf').value;
   closeParadaEditModal();
+  calcAl();
   updTbl(DATA[aM]);
+  updKpis(DATA[aM]);
+  updAl(DATA[aM]);
   rMapa(DATA[aM],MAPA_FILTRO_ACTUAL);
   updTrabCounter(DATA[aM]);
   buildCli(DATA[aM]);
