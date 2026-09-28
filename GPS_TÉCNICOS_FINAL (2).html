@@ -199,6 +199,12 @@ tbody tr:last-child td{border-bottom:none}
 .desv-leg-t em{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:4px;background:var(--sf2);color:var(--tx2)}
 .desv-leg.dn .desv-leg-t em{color:var(--dn)}.desv-leg.wn .desv-leg-t em{color:var(--wn)}
 .desv-leg-c{color:var(--tx2);margin-top:2px}.desv-leg-n{color:var(--tx3);font-size:11px;margin-top:3px}
+.al-grp{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--bd);border-left:3px solid var(--tx3);border-radius:var(--rs);margin-bottom:6px;cursor:pointer;background:var(--sf);font-size:12.5px;color:var(--tx)}
+.al-grp:hover{background:var(--sf2)}.al-grp b{margin-left:4px}
+.al-grp.g-dv{border-left-color:#6366f1}.al-grp.g-sl{border-left-color:#ca8a04}.al-grp.g-so{border-left-color:var(--tx3)}
+.al-chev{font-size:11px;color:var(--tx3);white-space:nowrap}
+.al-rojo{font-size:10px;font-weight:700;color:var(--dn);background:rgba(220,38,38,.1);padding:1px 6px;border-radius:4px;margin-left:4px}
+.al-grp-body{padding-left:10px;margin-bottom:8px}
 .sd-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px dashed var(--bd);background:transparent;color:var(--tx2);cursor:pointer;white-space:nowrap}
 .sd-btn:hover{border-color:var(--wn);color:var(--wn)}
 </style>
@@ -970,11 +976,12 @@ function calcAl(){
 
 /* === RENDER DASHBOARD === */
 function render(){
+  calcKmGps(false);
   document.getElementById('up').style.display='none';
   document.getElementById('dash').style.display='block';
   var movStr=DATA.map(function(m){return m.label}).join(', ');
   document.getElementById('rtit').textContent='Reporte GPS \u2014 '+DATA.length+' m\u00f3viles';
-  var kmFlota=Math.round(DATA.reduce(function(a,m){return a+m.paradas.reduce(function(b,p){return b+(p.dist||0)},0)},0));
+  var kmFlota=Math.round(DATA.reduce(function(a,m){return a+m.paradas.reduce(function(b,p){return b+kmParada(p)},0)},0));
   document.getElementById('rmet').textContent=(DATA[0]?DATA[0].desde+' \u2192 '+DATA[0].hasta:'')+(kmFlota>0?' \u00b7 '+kmFlota.toLocaleString('es-AR')+' km totales (flota)':'');
   document.getElementById('tabs').innerHTML=DATA.map(function(m,i){
     var dc=m.paradas.filter(function(p){return p.dA}).length;
@@ -995,7 +1002,7 @@ function renderComparativa(){
   if(DATA.length<2){wrap.style.display='none';return;}
   wrap.style.display='';
   var filas=DATA.map(function(m,i){
-    var km=Math.round(m.paradas.reduce(function(a,p){return a+(p.dist||0)},0));
+    var km=Math.round(m.paradas.reduce(function(a,p){return a+kmParada(p)},0));
     var pTot=m.paradas.filter(function(p){return !p.isP&&!p.isPn}).length;
     var sd=esSinDom(m);
     var trab=computeTrabajos(m,'todos');
@@ -1034,7 +1041,7 @@ function renderResumen(m){
   var ad=m.paradas.filter(function(p){return p.dA});
   var agm=m.paradas.filter(function(p){return p.gA&&p.gA.multi});
   var trab=computeTrabajos(m,'todos');
-  var kmTot=Math.round(m.paradas.reduce(function(a,p){return a+(p.dist||0)},0));
+  var kmTot=Math.round(m.paradas.reduce(function(a,p){return a+kmParada(p)},0));
   var kpiMovil='<div class="kpi" style="border-left:4px solid '+m.color+';background:linear-gradient(135deg,'+m.color+'14,transparent)">'+
     '<div class="kpi-l">M\u00f3vil</div><div class="kpi-v" style="color:'+m.color+'">'+m.label+'</div></div>';
   sg('sg',
@@ -1130,7 +1137,7 @@ function renderPlayerControls(m){
         var on=TRAMO_SEL===i;
         return '<div onclick="toggleTramo('+i+')" style="cursor:pointer;border:1px solid '+(on?m.color:'var(--bd)')+';background:'+(on?m.color+'1a':'var(--sf)')+';border-radius:8px;padding:6px 10px;font-size:11px">'+
           '<div style="font-weight:600;color:var(--tx)">Parada '+(leg.from.n||'?')+' &#8594; Parada '+(leg.to.n||'?')+'</div>'+
-          '<div style="color:var(--tx2);margin-top:2px">'+leg.from.hora+' \u2192 '+leg.to.hora+' &middot; '+(leg.to.dist!=null?leg.to.dist+' km':'')+'</div>'+
+          '<div style="color:var(--tx2);margin-top:2px">'+leg.from.hora+' \u2192 '+leg.to.hora+' &middot; '+(leg.to.dist!=null?kmParada(leg.to)+' km':'')+'</div>'+
           '<div style="color:var(--tx3);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(leg.to.loc||'')+'</div>'+
         '</div>';
       }).join('')+
@@ -1292,7 +1299,7 @@ function renderPanel(m){
   var gals=m.paradas.filter(function(p){return p.gA&&p.gA.multi});
   var ok=m.paradas.filter(function(p){return p.trab==='SI'}).length;
   var tt=m.paradas.filter(function(p){return p.trab&&p.trab!=='-'&&p.trab!==''}).length;
-  var km=Math.round(m.paradas.reduce(function(a,p){return a+(p.dist||0)},0));
+  var km=Math.round(m.paradas.reduce(function(a,p){return a+kmParada(p)},0));
   var dias=[...new Set(m.paradas.map(function(p){return p.fec}).filter(Boolean))].sort();
   var hC=m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon});
 
@@ -1564,7 +1571,7 @@ function updKpis(m){
   var spdF=ps.filter(function(p){return p.vmax>=100});
   var trabF=computeTrabajos(m,aD);
   var okf=trabF.ok,totf=trabF.total;
-  var kmf=Math.round(ps.reduce(function(a,p){return a+(p.dist||0)},0));
+  var kmf=Math.round(ps.reduce(function(a,p){return a+kmParada(p)},0));
   var alF=getAl(m,aD).filter(function(a){return a.lv==='dn'||a.lv==='wn'}).length;
   var el=document.getElementById('kpi-row');
   if(!el)return;
@@ -1668,7 +1675,7 @@ function getAl(m,dia){
   }
   // Circulación lenta
   tramosLentos(m,dia).forEach(function(t){
-    al.push({lv:'sl',f:t.p.fec,h:t.p.hora,loc:t.p.loc,msg:'&#128034; Circulaci\u00f3n lenta: '+fmtKm(t.p.dist)+' en '+fD(t.min)+' ('+Math.round(t.kmh)+' km/h de promedio) hasta llegar a esta parada'+(t.prev?' desde las '+horaNorm(t.prev.hora):'')});
+    al.push({lv:'sl',f:t.p.fec,h:t.p.hora,loc:t.p.loc,msg:'&#128034; Circulaci\u00f3n lenta: '+fmtKm(t.km)+' en '+fD(t.min)+' ('+Math.round(t.kmh)+' km/h de promedio) hasta llegar a esta parada'+(t.prev?' desde las '+horaNorm(t.prev.hora):'')});
   });
   // Paradas largas sin orden asignada
   paradasSinOrden(m,dia).forEach(function(p){
@@ -1677,14 +1684,30 @@ function getAl(m,dia){
   al.sort(function(a,b){var fa=fechaOrd(a.f),fb=fechaOrd(b.f);if(fa!==fb)return fa<fb?-1:1;var ha=horaNorm(a.h),hb=horaNorm(b.h);return ha<hb?-1:ha>hb?1:0;});
   return al;
 }
+var GRUPOS_AL={dv:'&#129517; Desv\u00edos de recorrido',sl:'&#128034; Circulaci\u00f3n lenta',so:'&#9208;&#65039; Paradas largas sin orden'};
+var AL_ABIERTOS={};
+function toggleGrupoAl(k){AL_ABIERTOS[k]=!AL_ABIERTOS[k];updAl(DATA[aM]);}
+function htmlAlerta(a){
+  var cls='ai '+a.lv+(a.sev==='dn'?' dvh':'')+(a.desv?' clk':'');
+  var clk=a.desv?' onclick="verDesvio(\''+a.desv.dia+'\','+a.desv.idx+')" title="Ver este tramo en el mapa"':'';
+  return '<div class="'+cls+'"'+clk+'><div><div class="ab">'+a.f+' '+a.h+' \u2014 '+a.loc+'</div><div class="am">'+a.msg+'</div></div></div>';
+}
 function updAl(m){
   var al=getAl(m,aD),c=document.getElementById('alc');if(!c)return;
-  c.innerHTML=!al.length?'<div class="na">Sin alertas para el per\u00edodo seleccionado</div>':
-    al.map(function(a){
-      var cls='ai '+a.lv+(a.sev==='dn'?' dvh':'')+(a.desv?' clk':'');
-      var clk=a.desv?' onclick="verDesvio(\''+a.desv.dia+'\','+a.desv.idx+')" title="Ver este tramo en el mapa"':'';
-      return '<div class="'+cls+'"'+clk+'><div><div class="ab">'+a.f+' '+a.h+' \u2014 '+a.loc+'</div><div class="am">'+a.msg+'</div></div></div>';
-    }).join('');
+  if(!al.length){c.innerHTML='<div class="na">Sin alertas para el per\u00edodo seleccionado</div>';return;}
+  var princ=al.filter(function(a){return !GRUPOS_AL[a.lv]});
+  var html=princ.map(htmlAlerta).join('');
+  Object.keys(GRUPOS_AL).forEach(function(k){
+    var items=al.filter(function(a){return a.lv===k});
+    if(!items.length)return;
+    var rojos=items.filter(function(a){return a.sev==='dn'}).length;
+    var ab=!!AL_ABIERTOS[k];
+    html+='<div class="al-grp g-'+k+(ab?' on':'')+'" onclick="toggleGrupoAl(\''+k+'\')">'+
+      '<span>'+GRUPOS_AL[k]+' <b>'+items.length+'</b>'+(rojos?' <span class="al-rojo">'+rojos+' alto'+(rojos>1?'s':'')+'</span>':'')+'</span>'+
+      '<span class="al-chev">'+(ab?'Ocultar &#9652;':'Ver &#9662;')+'</span></div>'+
+      (ab?'<div class="al-grp-body">'+items.map(htmlAlerta).join('')+'</div>':'');
+  });
+  c.innerHTML=html;
 }
 
 /* === TABLA === */
@@ -1714,7 +1737,8 @@ function updTbl(m){
       '<td style="white-space:nowrap;font-family:var(--fm);font-size:11px">'+p.hora+'</td>'+
       '<td style="color:var(--tx3);text-align:center">'+p.n+'</td>'+
       '<td style="max-width:200px;font-size:12px">'+p.loc+' '+dm+gm+spdb+'</td>'+
-      '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap">'+p.dist+' km</td>'+
+      (function(){var dx=typeof p.distGps==='number'&&Math.abs(p.distGps-(p.dist||0))>=0.3;
+        return '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap"'+(dx?' title="Medido sobre el trazado GPS. El Excel dec\u00eda '+(p.dist||0)+' km"':'')+'>'+kmParada(p)+' km'+(dx?' <span style="color:var(--tx3);font-size:10px">&#128752;</span>':'')+'</td>';})()+
       '<td>'+db2+'</td>'+
       (m.hC?'<td style="font-family:var(--fm);font-size:11px">'+cliDot+p.cli+'</td>':'')+
       (m.hT?'<td>'+tb2+'</td>':'')+
@@ -1951,7 +1975,7 @@ function rMapa(m,f){
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:11px">'+
         '<span style="color:#9c9890">Dur.</span><span>'+fD(p.durMin)+'</span>'+
         '<span style="color:#9c9890">T.Inst/Reclamo</span><span>'+(p.instMin>0?fD(p.instMin):'\u2014')+'</span>'+
-        '<span style="color:#9c9890">Dist.</span><span>'+p.dist+' km</span>'+
+        '<span style="color:#9c9890">Dist.</span><span>'+kmParada(p)+' km</span>'+
         '<span style="color:#9c9890">V.m\u00e1x</span><span>'+p.vmax+' km/h</span>'+
         (p.cli?'<span style="color:#9c9890">Cliente</span><span>'+p.cli+'</span>':'')+
         (p.trab?'<span style="color:#9c9890">Trabajo</span><span>'+p.trab+'</span>':'')+
@@ -2161,7 +2185,7 @@ function exportarExcelCompleto(){
         aoa.push(['OBSERVACIONES:', m.obs_manual||'']);
         aoa.push(['N° Parada','Fecha de parada','Hora','Duración de conducción','Distancia (km)','Duración de la parada','Ubicación de Parada','Velocidad máxima','Latitud','Longitud','Clientes','¿Trabajo realizado?','Tiempo de Inst. / Reclamo','Conformidad']);
         m.paradas.forEach(function(p){
-          aoa.push([p.n,p.fec,p.hora,p.durCond||'',p.dist,fD2(p.durMin),p.loc,p.vmax,p.lat||'',p.lon||'',p.cli||'',p.trab||'',fD2(p.instMin),p.obs||'']);
+          aoa.push([p.n,p.fec,p.hora,p.durCond||'',kmParada(p),fD2(p.durMin),p.loc,p.vmax,p.lat||'',p.lon||'',p.cli||'',p.trab||'',fD2(p.instMin),p.obs||'']);
         });
         var ws=XLSX.utils.aoa_to_sheet(aoa);
         ws['!cols']=[{wch:9},{wch:12},{wch:7},{wch:13},{wch:10},{wch:13},{wch:38},{wch:9},{wch:11},{wch:11},{wch:12},{wch:14},{wch:14},{wch:22}];
@@ -2219,9 +2243,11 @@ function importarRutasGPS(file){
         totalDias+=Object.keys(data[mov]).length;
       });
       try{localStorage.setItem(RUTAS_KEY,JSON.stringify(RUTAS_GPS));}catch(e2){}
+      var nKm=calcKmGps(true);
       render();
+      guardarBorradorAuto();
       ld(false);
-      toast('\u2713 Rutas importadas: '+moviles.length+' m\u00f3vil(es), '+totalDias+' d\u00eda(s)');
+      toast('\u2713 Rutas importadas: '+moviles.length+' m\u00f3vil(es), '+totalDias+' d\u00eda(s)'+(nKm?' \u2014 km recalculados sobre el trazado':''));
       document.getElementById('fi-rutas').value='';
     }catch(err){
       ld(false);
@@ -2403,6 +2429,47 @@ function toggleSinDom(mi){
   render();guardarBorradorAuto();
 }
 
+/* --- Km medidos sobre el trazado GPS importado --- */
+function kmParada(p){return typeof p.distGps==='number'?p.distGps:(p.dist||0);}
+// Para cada parada calcula los km recorridos desde que salió de la parada anterior hasta que llegó a esta.
+// El trazado viene simplificado (pocos puntos), así que la distancia de cada segmento se reparte
+// solo sobre el tiempo en que el móvil estaba en movimiento (descontando las paradas del Excel).
+function calcKmGps(force){
+  var n=0;
+  DATA.forEach(function(m){
+    var ruta=rutaParaMovil(m);if(!ruta)return;
+    diasMovil(m).forEach(function(d){
+      var pts=ruta[d];
+      if(!pts||pts.length<2||pts[0].length<3)return;
+      var ps=m.paradas.filter(function(p){return p.fec===d}).sort(cmpParadas);
+      if(!force&&ps.every(function(p){return p.distGps!==undefined}))return;
+      var tp=pts.map(function(x){return new Date(x[2]).getTime()});
+      var t0=tp[0],tN=tp[tp.length-1];
+      var stops=ps.map(function(p){var a=tsParada(p);return a==null?null:[a,a+(p.durMin||0)*60000]}).filter(Boolean);
+      var segs=[];
+      for(var i=0;i<pts.length-1;i++){
+        var ta=tp[i],tb=tp[i+1];if(!(tb>ta))continue;
+        var parado=0;
+        stops.forEach(function(s){var o=Math.min(tb,s[1])-Math.max(ta,s[0]);if(o>0)parado+=o});
+        segs.push({ta:ta,tb:tb,km:hav(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1])/1000,mov:Math.max((tb-ta)-parado,0)});
+      }
+      ps.forEach(function(p,i){
+        var tB=tsParada(p),prev=i>0?ps[i-1]:null;
+        var tA=prev?(tsParada(prev)!=null?tsParada(prev)+(prev.durMin||0)*60000:null):t0;
+        if(tB==null||tA==null||tB<=tA||tB<t0||tA>tN){p.distGps=null;return;}
+        var km=0;
+        segs.forEach(function(s){
+          if(!s.km)return;
+          var o=Math.min(s.tb,tB)-Math.max(s.ta,tA);if(o<=0)return;
+          km+=s.km*Math.min(1,o/(s.mov>0?s.mov:(s.tb-s.ta)));
+        });
+        p.distGps=Math.round(km*10)/10;n++;
+      });
+    });
+  });
+  return n;
+}
+
 /* --- Helpers de orden y tiempo --- */
 function horaNorm(h){var mt=String(h||'').match(/(\d{1,2}):(\d{2})/);return mt?((mt[1].length<2?'0':'')+mt[1]+':'+mt[2]):'';}
 function tsParada(p){return fechaHoraATs(p.fec,horaNorm(p.hora));}
@@ -2445,8 +2512,10 @@ function tramosLentos(m,dia){
       var prev=i>0?ps[i-1]:null;
       var min=minConduccion(p,prev);
       if(min==null||min<DESV.lentoMin)return;
-      var kmh=(p.dist||0)/(min/60);
-      if(kmh<DESV.lentoKmh)out.push({p:p,prev:prev,min:Math.round(min),kmh:kmh});
+      var km=kmParada(p);
+      if(km<0.5)return; // sin movimiento real: no es circulación lenta
+      var kmh=km/(min/60);
+      if(kmh<DESV.lentoKmh)out.push({p:p,prev:prev,min:Math.round(min),kmh:kmh,km:km});
     });
   });
   return out;
@@ -2483,11 +2552,11 @@ function analizarDia(m,dia){
     if(!ancla){inter.push(p);return;}
     var nodo={virt:false,base:esBase(p),lat:p.lat,lon:p.lon,nombre:esBase(p)?'PROA':('Cliente '+p.cli.trim()),hora:horaNorm(p.hora),p:p};
     if(anclas.length){
-      legs.push({A:anclas[anclas.length-1],B:nodo,inter:inter,real:inter.reduce(function(s,x){return s+(x.dist||0)},0)+(p.dist||0)});
+      legs.push({A:anclas[anclas.length-1],B:nodo,inter:inter,real:inter.reduce(function(s,x){return s+kmParada(x)},0)+kmParada(p)});
     }
     anclas.push(nodo);inter=[];
   });
-  r.kmFuera=Math.round(inter.reduce(function(s,x){return s+(x.dist||0)},0)*10)/10;
+  r.kmFuera=Math.round(inter.reduce(function(s,x){return s+kmParada(x)},0)*10)/10;
   r.anclas=anclas;
   r.firma=anclas.map(function(a){return a.lat.toFixed(5)+','+a.lon.toFixed(5)}).join(';');
   var c=m.desvCache&&m.desvCache[dia];
@@ -2651,11 +2720,13 @@ function updDesvio(m){
       '. No se calcula km por trabajo ni desv\u00edo de recorrido; s\u00ed se siguen controlando velocidad, paradas y domicilio.</div>';
     return;
   }
-  var ayuda='Km esperados: camino m\u00e1s corto por calle (OpenStreetMap) entre la base y las \u00f3rdenes, en el mismo orden en que se visitaron. Km reales: suma de la columna Distancia del GPS en esos mismos tramos. Un tramo se marca en amarillo con +'+DESV.minExtraWn+' km y +'+Math.round((DESV.ratioWn-1)*100)+'% sobre lo esperado, y en rojo con +'+DESV.minExtraDn+' km y el doble. Si en el tramo carg\u00f3 combustible, la alerta baja un nivel. Es una referencia para revisar con contexto: calles cortadas, cliente ausente, materiales, etc.';
+  var ayuda='Km esperados: camino m\u00e1s corto por calle (OpenStreetMap) entre la base y las \u00f3rdenes, en el mismo orden en que se visitaron. Km reales: medidos sobre el trazado GPS importado en esos mismos tramos (si todav\u00eda no se import\u00f3 el trazado, se usa la columna Distancia del Excel). Un tramo se marca en amarillo con +'+DESV.minExtraWn+' km y +'+Math.round((DESV.ratioWn-1)*100)+'% sobre lo esperado, y en rojo con +'+DESV.minExtraDn+' km y el doble. Si en el tramo carg\u00f3 combustible, la alerta baja un nivel. Es una referencia para revisar con contexto: calles cortadas, cliente ausente, materiales, etc.';
   var s=resumenDesvio(m,aD);
   var estado=(DESV_BUSY||DESV_Q.length||s.pend)?'<span class="desv-st">&#9203; Calculando rutas esperadas...</span>':
     (s.fuentes.estimado?'<span class="desv-st" style="color:var(--wn)" title="El ruteador no respondi\u00f3; se us\u00f3 l\u00ednea recta \u00d7 '+DESV.factorEstimado+'">&#8776; Estimado sin ruteador</span>':'');
   var btn=SUPERVISOR_MODE?'':'<button class="mfb" onclick="recalcDesvios()" title="Volver a consultar el ruteador">&#8635; Recalcular</button>';
+  var usaGps=m.paradas.some(function(p){return typeof p.distGps==='number'});
+  if(!usaGps)estado='<span class="desv-st" style="color:var(--wn)" title="Import\u00e1 las rutas GPS para medir los km sobre el trazado real">Km reales del Excel</span>'+estado;
   var head='<div class="th"><div class="tt">&#129517; Recorrido esperado vs. real <span title="'+escA(ayuda)+'" style="cursor:help;color:var(--tx3);font-weight:400">&#9432;</span></div>'+
     '<div style="display:flex;gap:8px;align-items:center">'+estado+btn+'</div></div>';
   var body='';
