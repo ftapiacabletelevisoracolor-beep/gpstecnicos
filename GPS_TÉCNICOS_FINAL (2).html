@@ -177,6 +177,30 @@ tbody tr:last-child td{border-bottom:none}
 .hist-item-dates{font-family:var(--fm);font-size:12px;color:var(--ac);font-weight:500;margin-bottom:3px}
 .hist-item-movs{font-size:13px;font-weight:500;color:var(--tx)}
 .hist-item-meta{font-size:11px;color:var(--tx3);margin-top:2px}
+/* Recorrido esperado vs real / alertas nuevas */
+.ai.dv{background:rgba(99,102,241,.10);border-color:#6366f1}
+.ai.dv.dvh{background:rgba(220,38,38,.09);border-color:var(--dn)}
+.ai.sl{background:rgba(202,138,4,.11);border-color:#ca8a04}
+.ai.so{background:var(--sf2);border-color:var(--tx3)}
+.ai.clk{cursor:pointer}.ai.clk:hover{box-shadow:inset 0 0 0 1px var(--bd)}
+.desv-card .th{flex-wrap:wrap;gap:8px}
+.desv-st{font-size:11px;color:var(--tx3)}
+.desv-hint{font-size:11px;color:var(--tx3);padding:8px 14px 12px}
+.desv-sd{background:rgba(217,119,6,.09);border:1px solid rgba(217,119,6,.35);border-radius:var(--r);padding:10px 14px;font-size:12.5px;color:var(--tx);margin-bottom:1.25rem;line-height:1.5}
+.desv-sum{display:flex;flex-wrap:wrap;gap:18px;padding:12px 14px 4px}
+.desv-sum div{display:flex;flex-direction:column;gap:2px}
+.desv-sum span{font-size:11px;color:var(--tx3)}.desv-sum b{font-size:16px}
+.desv-legs{display:flex;flex-direction:column;gap:6px;padding:10px 14px;max-height:340px;overflow-y:auto}
+.desv-leg{border:1px solid var(--bd);border-left:4px solid var(--ok);border-radius:8px;padding:7px 11px;font-size:12px;cursor:pointer;background:var(--sf)}
+.desv-leg.wn{border-left-color:var(--wn);background:rgba(217,119,6,.06)}
+.desv-leg.dn{border-left-color:var(--dn);background:rgba(220,38,38,.06)}
+.desv-leg.on{outline:2px solid #7c3aed;outline-offset:1px}
+.desv-leg-t{font-weight:600;color:var(--tx)}.desv-leg-t span{font-weight:400;color:var(--tx3);font-size:11px}
+.desv-leg-t em{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:4px;background:var(--sf2);color:var(--tx2)}
+.desv-leg.dn .desv-leg-t em{color:var(--dn)}.desv-leg.wn .desv-leg-t em{color:var(--wn)}
+.desv-leg-c{color:var(--tx2);margin-top:2px}.desv-leg-n{color:var(--tx3);font-size:11px;margin-top:3px}
+.sd-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px dashed var(--bd);background:transparent;color:var(--tx2);cursor:pointer;white-space:nowrap}
+.sd-btn:hover{border-color:var(--wn);color:var(--wn)}
 </style>
 </head>
 <body>
@@ -238,7 +262,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="sg" id="sg"></div>
     <div class="ts" id="cmp-wrap" style="display:none">
       <div class="th"><div class="tt">Comparativa de m&#243;viles</div><div style="font-size:11px;color:var(--tx3)">Toc&aacute; una fila para abrir ese m&#243;vil</div></div>
-      <div class="tw"><table><thead><tr><th>M&#243;vil</th><th>Paradas</th><th>Km totales</th><th>Trabajos OK</th><th>Km / trabajo <span title="Km totales de la semana &#247; trabajos realizados. Sirve para comparar entre m&#243;viles, no como medida absoluta: zonas alejadas o clientes dispersos pueden elevar el n&#250;mero sin que haya ineficiencia real. El &#9888;&#65039; marca los que superan el promedio del grupo en +40%, para revisar con contexto." style="cursor:help;color:var(--tx3);font-weight:400">&#9432;</span></th></tr></thead><tbody id="cmp-tbl"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th>M&#243;vil</th><th>Paradas</th><th>Km totales</th><th>Trabajos OK</th><th>Km / trabajo <span title="Km totales de la semana &#247; trabajos realizados. Sirve para comparar entre m&#243;viles, no como medida absoluta: zonas alejadas o clientes dispersos pueden elevar el n&#250;mero sin que haya ineficiencia real. El &#9888;&#65039; marca los que superan el promedio del grupo en +40%, para revisar con contexto. Los m&#243;viles sin &#243;rdenes a domicilio no entran en el promedio." style="cursor:help;color:var(--tx3);font-weight:400">&#9432;</span></th><th>Km extra <span title="Km recorridos de m&#225;s respecto del camino esperado entre la base y las &#243;rdenes (ver detalle en cada m&#243;vil)." style="cursor:help;color:var(--tx3);font-weight:400">&#9432;</span></th></tr></thead><tbody id="cmp-tbl"></tbody></table></div>
     </div>
     <div class="sl">M&#243;viles</div>
     <div class="tabs" id="tabs"></div>
@@ -580,6 +604,10 @@ function parseSheet(sheet,name,idx){
   var torre=sv(rows[1]&&rows[1][9]||'');
   // Dedicado a: col K (índice 10)
   var dedicado=sv(rows[1]&&rows[1][10]||'');
+  // Marca "SIN ÓRDENES A DOMICILIO: motivo" en col L (índice 11) — la escribe Exportar Excel
+  var marcaSD=sv(rows[1]&&rows[1][11]||'');
+  var sinDomX=/SIN\s+[ÓO]RDENES/i.test(marcaSD)?true:undefined;
+  var motivoSD=sinDomX?marcaSD.replace(/^.*?DOMICILIO\s*:?\s*/i,'').trim():'';
   // Observaciones fijas del móvil: fila 10 (índice 9) — buscar en varias columnas por si hay merge
   var obs_excel=(function(){
     var rowObs=rows[9]||[];
@@ -638,7 +666,7 @@ function parseSheet(sheet,name,idx){
       fec:sv(C.fec>=0?row[C.fec]:''),
       hora:sv(C.hora>=0?row[C.hora]:''),
       durMin:durMin,instMin:instMin,
-      durCond:sv(C.durc>=0?row[C.durc]:''),
+      durCond:sv(C.durc>=0?row[C.durc]:''),durCondMin:C.durc>=0?pdm(row[C.durc]):0,
       loc:ubic,dist:parseFloat(row[C.dist])||0,vmax:parseFloat(row[C.vmax])||0,
       lat:lat,lon:lon,
       cli:sv(C.cli>=0?row[C.cli]:''),
@@ -648,7 +676,7 @@ function parseSheet(sheet,name,idx){
       isP:isP,isPn:isPn,dA:null,gA:null
     });
   }
-  return{id:name,label:name,full:mlab,tecs:tecs,tecOverride:{},desde:desde,hasta:hasta,torre:torre,dedicado:dedicado,obs_manual:obs_excel,color:CLR[idx%CLR.length],paradas:paradas,hC:C.cli>=0,hT:C.trab>=0,hI:C.inst>=0,hCoord:C.lat>=0&&C.lon>=0};
+  return{id:name,label:name,full:mlab,tecs:tecs,tecOverride:{},desde:desde,hasta:hasta,torre:torre,dedicado:dedicado,sinDom:sinDomX,sinDomMotivo:motivoSD,obs_manual:obs_excel,color:CLR[idx%CLR.length],paradas:paradas,hC:C.cli>=0,hT:C.trab>=0,hI:C.inst>=0,hCoord:C.lat>=0&&C.lon>=0};
 }
 
 /* === PARSEAR COORDENADAS MANUALES === */
@@ -951,12 +979,13 @@ function render(){
   document.getElementById('tabs').innerHTML=DATA.map(function(m,i){
     var dc=m.paradas.filter(function(p){return p.dA}).length;
     var gc=m.paradas.filter(function(p){return p.gA&&p.gA.multi}).length;
-    var bG=(dc>0?'<span style="background:#fdf4ff;color:#9333ea;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:2px">'+dc+'</span>':'')+
+    var bG=(esSinDom(m)?'<span title="Sin \u00f3rdenes a domicilio" style="font-size:10px;margin-left:3px">&#128295;</span>':'')+(dc>0?'<span style="background:#fdf4ff;color:#9333ea;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:2px">'+dc+'</span>':'')+
            (gc>0?'<span style="background:#fff7ed;color:#ea580c;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:2px">&#9981;</span>':'');
     return '<button class="tab '+(i===aM?'on':'')+'" onclick="sw('+i+')">'+'<span class="tdot" style="background:'+m.color+'"></span>'+m.label+bG+'</button>';
   }).join('');
   renderPanel(DATA[aM]);
   renderComparativa();
+  ensureDesvios();
 }
 
 /* === COMPARATIVA DE M\u00d3VILES (km, paradas, trabajos OK y km/trabajo) === */
@@ -968,9 +997,11 @@ function renderComparativa(){
   var filas=DATA.map(function(m,i){
     var km=Math.round(m.paradas.reduce(function(a,p){return a+(p.dist||0)},0));
     var pTot=m.paradas.filter(function(p){return !p.isP&&!p.isPn}).length;
+    var sd=esSinDom(m);
     var trab=computeTrabajos(m,'todos');
-    var eff=trab.ok>0?(km/trab.ok):null;
-    return{i:i,m:m,km:km,pTot:pTot,trab:trab,eff:eff};
+    var eff=!sd&&trab.ok>0?(km/trab.ok):null;
+    var dv=sd?null:resumenDesvio(m,'todos');
+    return{i:i,m:m,km:km,pTot:pTot,trab:trab,eff:eff,sd:sd,dv:dv};
   });
   var effVals=filas.map(function(f){return f.eff}).filter(function(v){return v!==null});
   var effProm=effVals.length?effVals.reduce(function(a,v){return a+v},0)/effVals.length:0;
@@ -981,12 +1012,20 @@ function renderComparativa(){
       '<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+f.m.color+';margin-right:6px;vertical-align:middle"></span>'+f.m.label+'</td>'+
       '<td>'+f.pTot+'</td>'+
       '<td>'+f.km.toLocaleString('es-AR')+' km</td>'+
-      '<td>'+(f.trab.total>0?f.trab.ok+'/'+f.trab.total:'\u2014')+'</td>'+
-      '<td style="'+(effAlto?'color:var(--wn);font-weight:600':'')+'">'+effTxt+(effAlto?' &#9888;':'')+'</td>'+
+      '<td>'+(f.sd?'\u2014':(f.trab.total>0?f.trab.ok+'/'+f.trab.total:'\u2014'))+'</td>'+
+      (f.sd?'<td><span class="bd bdn2" title="'+escA(sinDomMotivo(f.m))+'">&#128295; Sin \u00f3rdenes a domicilio</span></td>':
+      '<td style="'+(effAlto?'color:var(--wn);font-weight:600':'')+'">'+effTxt+(effAlto?' &#9888;':'')+'</td>')+
+      '<td>'+cmpKmExtra(f)+'</td>'+
       '</tr>';
   }).join('');
 }
 
+function cmpKmExtra(f){
+  if(f.sd||!f.dv)return '\u2014';
+  if(!f.dv.expTot)return f.dv.pend?'\u23f3':'\u2014';
+  var col=f.dv.pct>=50?'var(--dn)':f.dv.pct>=25?'var(--wn)':'var(--ok)';
+  return '<span style="color:'+col+';font-weight:600">'+(f.dv.extra>=0?'+':'')+fmtKm(f.dv.extra)+'</span> <span style="color:var(--tx3);font-size:11px">('+(f.dv.pct>=0?'+':'')+Math.round(f.dv.pct)+'%)</span>';
+}
 /* === RESUMEN GENERAL — sigue al móvil seleccionado === */
 function renderResumen(m){
   var aw=m.paradas.filter(function(p){return !p.isP&&!p.isPn});
@@ -1002,10 +1041,19 @@ function renderResumen(m){
     kpiMovil,kpi('Paradas totales',aw.length,''),kpi('Km totales',kmTot.toLocaleString('es-AR'),''),
     kpi('Paradas +1h',al.length,al.length>3?'wn':''),kpi('Alertas GPS',ag.length,ag.length>0?'dn':''),
     kpi('&#127968; Domicilio',ad.length,ad.length>0?'dm':''),kpi('&#9981; Gasolineras',agm.length,agm.length>0?'gs':''),
-    trab.total>0?kpi('Trabajos OK',trab.ok+'/'+trab.total,'ok'):''
+    esSinDom(m)?kpi('Trabajos','&#128295; Sin domicilio',''):(trab.total>0?kpi('Trabajos OK',trab.ok+'/'+trab.total,'ok'):''),
+    kpiKmExtra(m,'todos',false)
   );
 }
 
+function kpiKmExtra(m,dia,chico){
+  if(esSinDom(m))return '';
+  var s=resumenDesvio(m,dia);
+  if(!s.expTot)return '';
+  var c=s.pct>=50?'dn':s.pct>=25?'wn':'ok';
+  var v=(s.extra>=0?'+':'')+(Math.round(s.extra*10)/10).toLocaleString('es-AR')+(chico?'':' <span style="font-size:13px;font-weight:500">('+(s.pct>=0?'+':'')+Math.round(s.pct)+'%)</span>');
+  return chico?ksi('&#129517; Km extra',v,c):kpi('&#129517; Km extra vs. esperado',v,c);
+}
 function puntoMasCercano(pts,latlng){
   var best=null,bestD=Infinity;
   pts.forEach(function(p){
@@ -1037,6 +1085,7 @@ function tramosDelDia(m,dia){
 }
 function toggleTramo(idx){
   TRAMO_SEL=(TRAMO_SEL===idx)?-1:idx;
+  if(TRAMO_SEL>=0&&DESV_SEL){DESV_SEL=null;updDesvio(DATA[aM]);}
   rMapa(DATA[aM],MAPA_FILTRO_ACTUAL);
   renderPlayerControls(DATA[aM]);
 }
@@ -1217,7 +1266,7 @@ function detenerReproduccion(){
   if(PLAYER.marker){try{LM2.removeLayer(PLAYER.marker);}catch(e){}}
   PLAYER={activo:false,marker:null,raf:null,pts:null,conTiempo:false,t0:0,t1:0,frac:0,pausado:true,tAnimBase:0,velocidad:1,duracionBase:30000,timeEl:null};
 }
-function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();TRAMO_SEL=-1;document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
+function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();TRAMO_SEL=-1;DESV_SEL=null;document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
 function eliminarDia(mi,dia){
   var m=DATA[mi];
   var cant=m.paradas.filter(function(p){return p.fec===dia}).length;
@@ -1292,7 +1341,9 @@ function renderPanel(m){
     '<div>'+
       '<div class="mn">'+m.label+' <span style="font-size:13px;font-weight:400;color:var(--tx2)">'+m.full.replace(m.label,'').replace(':','').trim()+'</span>'+
       (m.dedicado?' <span style="font-size:11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:2px 10px;border-radius:20px;font-weight:500;vertical-align:middle">&#128295; Dedicado: '+m.dedicado+'</span>':'')+
+      (esSinDom(m)?' <span style="font-size:11px;background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.4);color:var(--wn);padding:2px 10px;border-radius:20px;font-weight:600;vertical-align:middle">Sin \u00f3rdenes a domicilio</span>':'')+
       '</div>'+
+      (SUPERVISOR_MODE?'':'<button class="sd-btn" onclick="toggleSinDom('+aM+')">'+(esSinDom(m)?'Volver a contar \u00f3rdenes a domicilio':'&#128295; Marcar sin \u00f3rdenes a domicilio')+'</button>')+
     '</div>'+
     (m.torre?'<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 14px;font-size:12px;color:#1d4ed8;font-weight:500">&#128225; Torre: <strong>'+m.torre+'</strong></div>':'')+
     '</div>'+
@@ -1304,7 +1355,7 @@ function renderPanel(m){
     '<div id="obs-wrap"></div>'+
     '<div id="notas-wrap"></div>'+
     '<div id="nap-search-wrap"></div>'+
-    mapH+dbts+'<div id="player-ctrl"></div>'+'<div id="tdw"></div>'+
+    mapH+dbts+'<div id="player-ctrl"></div>'+'<div id="desv-wrap"></div>'+'<div id="tdw"></div>'+
     '<div class="ts"><div class="th"><div class="tt">Detalle de paradas</div><div style="font-size:11px;color:var(--tx3)" id="tc"></div></div>'+
       '<div class="tw"><table><thead><tr>'+
         '<th>Fecha</th><th>Hora</th><th>N\u00b0</th><th>Ubicaci\u00f3n</th><th>Dist.</th><th>Dur. parada</th>'+
@@ -1317,7 +1368,7 @@ function renderPanel(m){
     (m.hC?'<div id="clc-wrap"></div>':'')+
     (m.hT?'<div class="cc"><div class="ct">Efectividad de trabajos</div><div class="cw" style="max-width:340px;margin:0 auto"><canvas id="cpie"></canvas></div></div>':'');
 
-  updKpis(m);updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
+  updKpis(m);updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);updDesvio(m);
   if(hC)rMapa(m,'t');
   renderPlayerControls(m);
   // Bar chart
@@ -1526,14 +1577,16 @@ function updKpis(m){
     ksi('&#128680; +100km/h',spdF.length,spdF.length>0?'dn':'')+
     (gasMinF>0?ksi('Min. estación',fD(gasMinF),'gs'):'')+
     (totf>0?ksi('Trabajos OK',okf+'/'+totf,'ok'):'')+
-    ksi('Km',kmf,'');
+    ksi('Km',kmf,'')+
+    kpiKmExtra(m,aD,true)+
+    (function(){var n=tramosLentos(m,aD).length;return ksi('&#128034; Tramos lentos',n,n>0?'wn':'');})();
 }
 
 function chDay(d,btn){
   aD=d;
-  TRAMO_SEL=-1;
+  TRAMO_SEL=-1;DESV_SEL=null;
   document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
-  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);
+  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);updDesvio(m);
   if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
   renderPlayerControls(m);
 }
@@ -1604,17 +1657,40 @@ function getAl(m,dia){
     if(p.vmax>=100)al.push({lv:'spd',f:p.fec,h:p.hora,loc:p.loc,msg:'\uD83D\uDEA8 Exceso de velocidad: '+p.vmax+' km/h'});
     else if(p.durMin>=VM&&!p.isP&&!p.isPn)al.push({lv:'wn',f:p.fec,h:p.hora,loc:p.loc,msg:'Parada de '+fD(p.durMin)+' \u2014 supera las 2 horas'});
   });
+  // Desvío de recorrido respecto de las órdenes
+  if(!esSinDom(m)){
+    (dia==='todos'?diasMovil(m):[dia]).forEach(function(d){
+      analizarDia(m,d).legs.forEach(function(lg,i){
+        if(!lg.nivel)return;
+        al.push({lv:'dv',sev:lg.nivel,f:d,h:lg.B.hora||'',loc:lg.A.nombre+' \u2192 '+lg.B.nombre,msg:'&#129517; '+textoLeg(lg),desv:{dia:d,idx:i}});
+      });
+    });
+  }
+  // Circulación lenta
+  tramosLentos(m,dia).forEach(function(t){
+    al.push({lv:'sl',f:t.p.fec,h:t.p.hora,loc:t.p.loc,msg:'&#128034; Circulaci\u00f3n lenta: '+fmtKm(t.p.dist)+' en '+fD(t.min)+' ('+Math.round(t.kmh)+' km/h de promedio) hasta llegar a esta parada'+(t.prev?' desde las '+horaNorm(t.prev.hora):'')});
+  });
+  // Paradas largas sin orden asignada
+  paradasSinOrden(m,dia).forEach(function(p){
+    al.push({lv:'so',f:p.fec,h:p.hora,loc:p.loc,msg:'&#9208;&#65039; Parada de '+fD(p.durMin)+' sin orden asignada'+(p.conf?' ('+p.conf+')':'')});
+  });
+  al.sort(function(a,b){var fa=fechaOrd(a.f),fb=fechaOrd(b.f);if(fa!==fb)return fa<fb?-1:1;var ha=horaNorm(a.h),hb=horaNorm(b.h);return ha<hb?-1:ha>hb?1:0;});
   return al;
 }
 function updAl(m){
   var al=getAl(m,aD),c=document.getElementById('alc');if(!c)return;
   c.innerHTML=!al.length?'<div class="na">Sin alertas para el per\u00edodo seleccionado</div>':
-    al.map(function(a){return '<div class="ai '+a.lv+'"><div><div class="ab">'+a.f+' '+a.h+' \u2014 '+a.loc+'</div><div class="am">'+a.msg+'</div></div></div>'}).join('');
+    al.map(function(a){
+      var cls='ai '+a.lv+(a.sev==='dn'?' dvh':'')+(a.desv?' clk':'');
+      var clk=a.desv?' onclick="verDesvio(\''+a.desv.dia+'\','+a.desv.idx+')" title="Ver este tramo en el mapa"':'';
+      return '<div class="'+cls+'"'+clk+'><div><div class="ab">'+a.f+' '+a.h+' \u2014 '+a.loc+'</div><div class="am">'+a.msg+'</div></div></div>';
+    }).join('');
 }
 
 /* === TABLA === */
 function updTbl(m){
   var ps=pFilt(m),tb=document.getElementById('tb'),tc=document.getElementById('tc');if(!tb)return;
+  var lentos=new Map();tramosLentos(m,aD).forEach(function(t){lentos.set(t.p,t)});
   if(tc)tc.textContent=ps.length+' registros'+(SEL_PARADAS.size?' \u2014 '+SEL_PARADAS.size+' seleccionada(s)':'');
   tb.innerHTML=ps.map(function(p){
     var pidx=m.paradas.indexOf(p);
@@ -1626,6 +1702,7 @@ function updTbl(m){
     var dm=p.dA?'<span class="bd bdm">&#127968; '+p.dA.dist+'m</span>':'';
     var gm=p.gA?'<span class="bd '+(p.gA.multi?'bdgm':'bdg')+'">&#9981;'+(p.gA.multi?' x2+':'')+' '+fD(p.durMin)+'</span>':'';
     var spdb=p.vmax>=100?'<span class="bd" style="background:#fff1f2;color:#e11d48">&#128680; '+p.vmax+' km/h</span>':'';
+    var lt=lentos.get(p);if(lt)spdb+=' <span class="bd" style="background:rgba(202,138,4,.13);color:#a16207" title="Lleg\u00f3 a esta parada manejando '+fD(lt.min)+' a '+Math.round(lt.kmh)+' km/h de promedio">&#128034; '+Math.round(lt.kmh)+' km/h</span>';
     var sel=SEL_PARADAS.has(pidx);
     var rc=(p.isP?'rp':p.dA?'rd':p.gA?'rg':p.vmax>=100?'rspd':'')+(sel?' row-sel':'');
     var repColor=(!p.isP&&!p.dA&&!p.gA&&p.vmax<100&&p.cliRepSemana)?getCliColor(p.cliRepSemana):null;
@@ -1699,6 +1776,8 @@ function guardarEdicionParada(){
   updTrabCounter(DATA[aM]);
   buildCli(DATA[aM]);
   buildEfectividad(DATA[aM]);
+  updDesvio(DATA[aM]);
+  ensureDesvios();
   guardarBorradorAuto();
   toast('\u2713 Parada actualizada');
 }
@@ -1893,6 +1972,7 @@ function rMapa(m,f){
   ps.forEach(function(p){if(SEL_PARADAS.has(m.paradas.indexOf(p)))selBds.push([p.lat,p.lon]);});
   if(selBds.length)LM2.fitBounds(selBds,{padding:[60,60],maxZoom:16});
   else if(bds.length)LM2.fitBounds(bds,{padding:[35,35]});
+  dibujarDesvioSel(m);
 }
 function fm(f,btn){document.querySelectorAll('.mfb').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');MAPA_FILTRO_ACTUAL=f;rMapa(DATA[aM],f);renderPlayerControls(DATA[aM]);}
 
@@ -2015,6 +2095,9 @@ async function exportToHistorial(){
     }catch(e){}
     HIST_LOADED=true;
   }
+  ld(true,'Calculando recorridos esperados...');
+  await esperarDesvios(90000);
+  ld(true,'Preparando archivos para el historial...');
   try{
     var d0=DATA[0].desde||'',d1=DATA[0].hasta||'';
     var moviles=DATA.map(function(m){return m.label});
@@ -2067,7 +2150,7 @@ function exportarExcelCompleto(){
       DATA.forEach(function(m){
         var aoa=[];
         aoa.push(['Reporte detallado GPS']);
-        aoa.push([m.full||m.label,'','','','','','','','',(m.torre?'TORRE DE CONTROL: '+m.torre:''),(m.dedicado?'DEDICADO A: '+m.dedicado:'')]);
+        aoa.push([m.full||m.label,'','','','','','','','',(m.torre?'TORRE DE CONTROL: '+m.torre:''),(m.dedicado?'DEDICADO A: '+m.dedicado:''),(esSinDom(m)?'SIN \u00d3RDENES A DOMICILIO: '+sinDomMotivo(m):'')]);
         var tecLabels=['TÉCNICO 1:','TÉCNICO 2:','TÉCNICO 3:','TÉCNICO 4:'];
         for(var ti=0;ti<4;ti++){
           aoa.push([tecLabels[ti], m.tecs[ti]?m.tecs[ti].raw:'']);
@@ -2279,6 +2362,406 @@ function cargarSesion(file){
   rd.readAsText(file);
 }
 
+
+/* === DESVÍO DE RECORRIDO · CIRCULACIÓN LENTA · PARADAS SIN ORDEN · MÓVILES SIN DOMICILIO === */
+// Umbrales (ajustables)
+var DESV={
+  minExtraWn:3,ratioWn:1.5,   // amarillo: +3 km y +50% sobre lo esperado
+  minExtraDn:8,ratioDn:2,     // rojo: +8 km y el doble de lo esperado
+  sinOrdenKm:3,               // salida PROA → PROA sin ninguna orden en el medio
+  lentoMin:12,lentoKmh:10,    // tramo de 12 min o más a menos de 10 km/h promedio
+  paradaSinOrdenMin:20,       // parada de 20 min o más sin cliente asignado
+  factorEstimado:1.35         // si no responde el ruteador: línea recta × 1,35
+};
+var PROA_LL=[-34.64210,-68.34020];
+var OSRM_URL='https://router.project-osrm.org/route/v1/driving/';
+var DESV_Q=[],DESV_BUSY=false,DESV_FALLOS=0,DESV_MEM={},DESV_GEOM={},DESV_SEL=null,_DESV_UI_T=null;
+
+/* --- Móviles sin órdenes a domicilio --- */
+function esSinDom(m){
+  if(!m)return false;
+  if(m.sinDom===true)return true;
+  if(m.sinDom===false)return false;
+  return !m.hC&&!m.hT; // automático: el Excel vino sin columnas de clientes/trabajo
+}
+function sinDomMotivo(m){
+  if(m.sinDomMotivo)return m.sinDomMotivo;
+  if(m.sinDom===undefined&&!m.hC&&!m.hT)return m.dedicado||'Excel sin columnas de clientes';
+  return m.dedicado||'';
+}
+function toggleSinDom(mi){
+  var m=DATA[mi];if(!m)return;
+  if(esSinDom(m)){
+    if(!confirm('\u00bfVolver a tratar '+m.label+' como m\u00f3vil con \u00f3rdenes a domicilio?'))return;
+    m.sinDom=false;m.sinDomMotivo='';
+  }else{
+    var mot=prompt('\u00bfA qu\u00e9 estuvo dedicado '+m.label+'? (opcional, ej: Red, Dep\u00f3sito, Fibra troncal)',m.dedicado||'');
+    if(mot===null)return;
+    m.sinDom=true;m.sinDomMotivo=mot.trim();
+  }
+  DESV_SEL=null;
+  render();guardarBorradorAuto();
+}
+
+/* --- Helpers de orden y tiempo --- */
+function horaNorm(h){var mt=String(h||'').match(/(\d{1,2}):(\d{2})/);return mt?((mt[1].length<2?'0':'')+mt[1]+':'+mt[2]):'';}
+function tsParada(p){return fechaHoraATs(p.fec,horaNorm(p.hora));}
+function fechaOrd(f){var p=(f||'').split('/');return p.length===3?(p[2]+'-'+p[1]+'-'+p[0]):(f||'');}
+function diasMovil(m){return [...new Set(m.paradas.map(function(p){return p.fec}).filter(Boolean))].sort(function(a,b){return fechaOrd(a)<fechaOrd(b)?-1:fechaOrd(a)>fechaOrd(b)?1:0});}
+function cmpParadas(a,b){
+  var fa=fechaOrd(a.fec),fb=fechaOrd(b.fec);
+  if(fa!==fb)return fa<fb?-1:1;
+  var ta=tsParada(a),tb=tsParada(b);
+  if(ta!=null&&tb!=null&&ta!==tb)return ta-tb;
+  return (a.n||0)-(b.n||0);
+}
+function esOrden(p){var c=(p.cli||'').trim().toUpperCase();return !!c&&c!=='-'&&c!=='PROA'&&!p.isP;}
+function esBase(p){return !!(p.isP||(p.cli||'').trim().toUpperCase()==='PROA'||(p.conf||'').trim().toUpperCase()==='PROA');}
+function fmtKm(v){return (Math.round((v||0)*10)/10).toLocaleString('es-AR',{maximumFractionDigits:1})+' km';}
+function esperar(ms){return new Promise(function(r){setTimeout(r,ms)});}
+
+/* --- Minutos de manejo del tramo que termina en la parada p --- */
+function minConduccion(p,prev){
+  if(typeof p.durCondMin==='number'&&p.durCondMin>0)return p.durCondMin;
+  var s=String(p.durCond||'');
+  if(s&&s.indexOf('GMT')<0){
+    var mt=s.match(/^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if(mt){var v=parseInt(mt[1])*60+parseInt(mt[2])+(mt[3]?parseInt(mt[3])/60:0);if(v>0)return v;}
+  }
+  // Respaldo: llegada a esta parada − salida de la anterior (mismo día)
+  if(prev&&prev.fec===p.fec){
+    var t1=tsParada(p),t0=tsParada(prev);
+    if(t1!=null&&t0!=null){var v2=(t1-t0)/60000-(prev.durMin||0);if(v2>0&&v2<600)return v2;}
+  }
+  return null;
+}
+
+/* --- Circulación lenta: tramos largos a muy baja velocidad promedio --- */
+function tramosLentos(m,dia){
+  var out=[];
+  (dia==='todos'?diasMovil(m):[dia]).forEach(function(d){
+    var ps=m.paradas.filter(function(p){return p.fec===d}).sort(cmpParadas);
+    ps.forEach(function(p,i){
+      var prev=i>0?ps[i-1]:null;
+      var min=minConduccion(p,prev);
+      if(min==null||min<DESV.lentoMin)return;
+      var kmh=(p.dist||0)/(min/60);
+      if(kmh<DESV.lentoKmh)out.push({p:p,prev:prev,min:Math.round(min),kmh:kmh});
+    });
+  });
+  return out;
+}
+
+/* --- Paradas largas sin orden (solo días que tienen órdenes cargadas) --- */
+function paradasSinOrden(m,dia){
+  if(esSinDom(m))return[];
+  var conOrden={};m.paradas.forEach(function(p){if(esOrden(p))conOrden[p.fec]=true});
+  var ps=dia==='todos'?m.paradas:m.paradas.filter(function(p){return p.fec===dia});
+  return ps.filter(function(p){
+    return conOrden[p.fec]&&!esBase(p)&&!p.isPn&&!esOrden(p)&&!p.gA&&!p.dA&&p.durMin>=DESV.paradaSinOrdenMin&&p.durMin<VM;
+  });
+}
+
+/* --- Análisis de un día: tramos entre base y órdenes, km esperados vs reales --- */
+function analizarDia(m,dia){
+  var r={dia:dia,legs:[],nOrd:0,expTot:0,realTot:0,extra:0,pct:0,kmFuera:0,pend:0,fuente:'',sinOrdenes:false,firma:'',anclas:[],marcados:0};
+  var todas=m.paradas.slice().sort(cmpParadas);
+  var ps=todas.filter(function(p){return p.fec===dia});
+  if(!ps.length)return r;
+  r.nOrd=ps.filter(esOrden).length;
+  if(!r.nOrd){r.sinOrdenes=true;return r;}
+  var anclas=[],legs=[],inter=[];
+  // Origen del día: si la primera parada no es la base, el móvil salió de donde quedó la noche anterior (o PROA)
+  var p0=ps[0];
+  if(!esBase(p0)){
+    var prev=todas[todas.indexOf(p0)-1];
+    if(prev&&prev.lat&&prev.lon)anclas.push({virt:true,base:esBase(prev),lat:prev.lat,lon:prev.lon,nombre:esBase(prev)?'PROA':'Inicio del d\u00eda',hora:'',p:null});
+    else anclas.push({virt:true,base:true,lat:PROA_LL[0],lon:PROA_LL[1],nombre:'PROA',hora:'',p:null});
+  }
+  ps.forEach(function(p){
+    var ancla=(esBase(p)||esOrden(p))&&p.lat&&p.lon;
+    if(!ancla){inter.push(p);return;}
+    var nodo={virt:false,base:esBase(p),lat:p.lat,lon:p.lon,nombre:esBase(p)?'PROA':('Cliente '+p.cli.trim()),hora:horaNorm(p.hora),p:p};
+    if(anclas.length){
+      legs.push({A:anclas[anclas.length-1],B:nodo,inter:inter,real:inter.reduce(function(s,x){return s+(x.dist||0)},0)+(p.dist||0)});
+    }
+    anclas.push(nodo);inter=[];
+  });
+  r.kmFuera=Math.round(inter.reduce(function(s,x){return s+(x.dist||0)},0)*10)/10;
+  r.anclas=anclas;
+  r.firma=anclas.map(function(a){return a.lat.toFixed(5)+','+a.lon.toFixed(5)}).join(';');
+  var c=m.desvCache&&m.desvCache[dia];
+  var ok=!!(c&&c.firma===r.firma&&c.km&&c.km.length===legs.length);
+  r.fuente=ok?c.fuente:'';
+  legs.forEach(function(lg){
+    lg.real=Math.round(lg.real*10)/10;
+    lg.baseBase=lg.A.base&&lg.B.base;
+    lg.gas=lg.inter.some(function(x){return x.gA})||!!(lg.B.p&&lg.B.p.gA);
+    lg.dom=lg.inter.some(function(x){return x.dA})||!!(lg.B.p&&lg.B.p.dA);
+    lg.sinOrden=lg.inter.filter(function(x){return !x.gA&&!esBase(x)});
+    lg.nivel='';
+    lg.exp=lg.baseBase?0:(ok?c.km[legs.indexOf(lg)]:null);
+    if(lg.exp==null){r.pend++;return;}
+    lg.extra=Math.round((lg.real-lg.exp)*10)/10;
+    lg.ratio=lg.real/Math.max(lg.exp,0.5);
+    var nv='';
+    if(lg.baseBase)nv=lg.real>=DESV.sinOrdenKm?'wn':'';
+    else if(lg.extra>=DESV.minExtraDn&&lg.ratio>=DESV.ratioDn)nv='dn';
+    else if(lg.extra>=DESV.minExtraWn&&lg.ratio>=DESV.ratioWn)nv='wn';
+    if(lg.gas&&nv&&!lg.baseBase)nv=nv==='dn'?'wn':''; // cargar combustible justifica parte del desvío
+    lg.nivel=nv;
+    if(nv)r.marcados++;
+    r.expTot+=lg.exp;r.realTot+=lg.real;
+  });
+  r.legs=legs;
+  r.expTot=Math.round(r.expTot*10)/10;r.realTot=Math.round(r.realTot*10)/10;
+  r.extra=Math.round((r.realTot-r.expTot)*10)/10;
+  r.pct=r.expTot>0?r.extra/r.expTot*100:0;
+  return r;
+}
+function resumenDesvio(m,dia){
+  var s={dias:[],expTot:0,realTot:0,extra:0,pct:0,pend:0,marcados:0,nOrd:0,fuentes:{}};
+  (dia==='todos'?diasMovil(m):[dia]).forEach(function(d){
+    var r=analizarDia(m,d);s.dias.push(r);
+    if(r.sinOrdenes)return;
+    s.expTot+=r.expTot;s.realTot+=r.realTot;s.pend+=r.pend;s.marcados+=r.marcados;s.nOrd+=r.nOrd;
+    if(r.fuente)s.fuentes[r.fuente]=true;
+  });
+  s.expTot=Math.round(s.expTot*10)/10;s.realTot=Math.round(s.realTot*10)/10;
+  s.extra=Math.round((s.realTot-s.expTot)*10)/10;
+  s.pct=s.expTot>0?s.extra/s.expTot*100:0;
+  return s;
+}
+function textoLeg(lg){
+  var t;
+  if(lg.baseBase)t='Salida sin orden asignada: recorri\u00f3 '+fmtKm(lg.real)+' entre PROA y PROA';
+  else t='Se esperaban '+fmtKm(lg.exp)+' y recorri\u00f3 '+fmtKm(lg.real)+' ('+(lg.extra>=0?'+':'')+fmtKm(lg.extra)+')';
+  return t+notasLeg(lg,true);
+}
+function notasLeg(lg,conSep){
+  var n=[];
+  if(lg.gas)n.push('&#9981; incluye carga de combustible');
+  if(lg.dom)n.push('&#127968; pas\u00f3 por el domicilio de un t\u00e9cnico');
+  var so=lg.sinOrden.filter(function(x){return !x.dA});
+  if(so.length)n.push(so.length+' parada(s) sin orden en el medio: '+so.slice(0,2).map(function(x){return (x.loc||'').split(',')[0]+' ('+fD(x.durMin)+')'}).join(', ')+(so.length>2?'…':''));
+  return n.length?(conSep?' \u2014 ':'')+n.join(' \u00b7 '):'';
+}
+
+/* --- Ruteo esperado (OSRM sobre OpenStreetMap), con cola y respaldo --- */
+async function osrmLegs(coords){
+  var url=OSRM_URL+coords.map(function(c){return c[1].toFixed(6)+','+c[0].toFixed(6)}).join(';')+'?overview=false';
+  var ctl=new AbortController();var to=setTimeout(function(){ctl.abort()},15000);
+  try{
+    var r=await fetch(url,{signal:ctl.signal});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var j=await r.json();
+    if(j.code!=='Ok'||!j.routes||!j.routes[0])throw new Error(j.code||'sin ruta');
+    return j.routes[0].legs.map(function(l){return Math.round(l.distance/100)/10});
+  }finally{clearTimeout(to);}
+}
+function estimarLegs(coords){
+  var o=[];
+  for(var i=0;i<coords.length-1;i++)o.push(Math.round(hav(coords[i][0],coords[i][1],coords[i+1][0],coords[i+1][1])*DESV.factorEstimado/100)/10);
+  return o;
+}
+async function osrmGeom(a,b){
+  var k=a.lat.toFixed(5)+','+a.lon.toFixed(5)+'>'+b.lat.toFixed(5)+','+b.lon.toFixed(5);
+  if(DESV_GEOM[k])return DESV_GEOM[k];
+  var r=await fetch(OSRM_URL+a.lon+','+a.lat+';'+b.lon+','+b.lat+'?overview=full&geometries=geojson');
+  var j=await r.json();
+  if(j.code!=='Ok')throw new Error(j.code);
+  var g=j.routes[0].geometry.coordinates.map(function(c){return[c[1],c[0]]});
+  DESV_GEOM[k]=g;return g;
+}
+function ensureDesvios(){
+  DATA.forEach(function(m){
+    if(esSinDom(m))return;
+    diasMovil(m).forEach(function(dia){
+      var r=analizarDia(m,dia);
+      if(r.sinOrdenes||r.anclas.length<2)return;
+      var c=m.desvCache&&m.desvCache[dia];
+      if(c&&c.firma===r.firma)return;
+      if(DESV_MEM[r.firma]){m.desvCache=m.desvCache||{};m.desvCache[dia]=DESV_MEM[r.firma];return;}
+      var k=m.label+'|'+dia;
+      if(DESV_Q.some(function(q){return q.k===k&&q.m===m}))return;
+      DESV_Q.push({k:k,m:m,dia:dia});
+    });
+  });
+  if(DESV_Q.length&&!DESV_BUSY)procesarColaDesv();
+}
+async function procesarColaDesv(){
+  DESV_BUSY=true;
+  refreshDesvUI();
+  await esperar(900); // espera un poco por si se están editando varias paradas seguidas
+  while(DESV_Q.length){
+    var it=DESV_Q.shift();
+    if(DATA.indexOf(it.m)<0||esSinDom(it.m))continue;
+    var r=analizarDia(it.m,it.dia);
+    if(r.sinOrdenes||r.anclas.length<2)continue;
+    var c=it.m.desvCache&&it.m.desvCache[it.dia];
+    if(c&&c.firma===r.firma)continue;
+    var res=DESV_MEM[r.firma];
+    if(!res){
+      var coords=r.anclas.map(function(a){return[a.lat,a.lon]});
+      var km=null,fuente='osrm';
+      if(DESV_FALLOS<3){
+        try{km=await osrmLegs(coords);DESV_FALLOS=0;}
+        catch(e){DESV_FALLOS++;console.warn('Ruteador no disponible:',e);}
+      }
+      if(!km){km=estimarLegs(coords);fuente='estimado';}
+      res={firma:r.firma,km:km,fuente:fuente};
+      if(fuente==='osrm'){DESV_MEM[r.firma]=res;await esperar(1100);} // el servidor público pide ~1 consulta por segundo
+    }
+    it.m.desvCache=it.m.desvCache||{};
+    it.m.desvCache[it.dia]=res;
+    refreshDesvUI();
+  }
+  DESV_BUSY=false;
+  refreshDesvUI();
+  if(!SUPERVISOR_MODE&&DATA.length)guardarBorradorAuto();
+}
+async function esperarDesvios(maxMs){
+  var t0=Date.now();
+  ensureDesvios();
+  while((DESV_BUSY||DESV_Q.length)&&Date.now()-t0<(maxMs||120000))await esperar(300);
+}
+function recalcDesvios(){
+  DATA.forEach(function(m){delete m.desvCache});
+  DESV_MEM={};DESV_FALLOS=0;DESV_SEL=null;
+  ensureDesvios();
+  if(DATA[aM])updDesvio(DATA[aM]);
+  toast('Recalculando recorridos esperados...');
+}
+function refreshDesvUI(){
+  clearTimeout(_DESV_UI_T);
+  _DESV_UI_T=setTimeout(function(){
+    var d=document.getElementById('dash');
+    if(!d||d.style.display==='none'||!DATA[aM])return;
+    var m=DATA[aM];
+    updDesvio(m);updAl(m);updKpis(m);renderResumen(m);renderComparativa();
+  },60);
+}
+
+/* --- Panel "Recorrido esperado vs. real" --- */
+function updDesvio(m){
+  var w=document.getElementById('desv-wrap');if(!w)return;
+  if(esSinDom(m)){
+    var mot=sinDomMotivo(m);
+    w.innerHTML='<div class="desv-sd">&#128295; <b>'+m.label+' no hace \u00f3rdenes a domicilio</b>'+(mot?' ('+mot+')':'')+
+      '. No se calcula km por trabajo ni desv\u00edo de recorrido; s\u00ed se siguen controlando velocidad, paradas y domicilio.</div>';
+    return;
+  }
+  var ayuda='Km esperados: camino m\u00e1s corto por calle (OpenStreetMap) entre la base y las \u00f3rdenes, en el mismo orden en que se visitaron. Km reales: suma de la columna Distancia del GPS en esos mismos tramos. Un tramo se marca en amarillo con +'+DESV.minExtraWn+' km y +'+Math.round((DESV.ratioWn-1)*100)+'% sobre lo esperado, y en rojo con +'+DESV.minExtraDn+' km y el doble. Si en el tramo carg\u00f3 combustible, la alerta baja un nivel. Es una referencia para revisar con contexto: calles cortadas, cliente ausente, materiales, etc.';
+  var s=resumenDesvio(m,aD);
+  var estado=(DESV_BUSY||DESV_Q.length||s.pend)?'<span class="desv-st">&#9203; Calculando rutas esperadas...</span>':
+    (s.fuentes.estimado?'<span class="desv-st" style="color:var(--wn)" title="El ruteador no respondi\u00f3; se us\u00f3 l\u00ednea recta \u00d7 '+DESV.factorEstimado+'">&#8776; Estimado sin ruteador</span>':'');
+  var btn=SUPERVISOR_MODE?'':'<button class="mfb" onclick="recalcDesvios()" title="Volver a consultar el ruteador">&#8635; Recalcular</button>';
+  var head='<div class="th"><div class="tt">&#129517; Recorrido esperado vs. real <span title="'+escA(ayuda)+'" style="cursor:help;color:var(--tx3);font-weight:400">&#9432;</span></div>'+
+    '<div style="display:flex;gap:8px;align-items:center">'+estado+btn+'</div></div>';
+  var body='';
+  if(aD==='todos'){
+    var filas=s.dias.map(function(r){
+      if(r.sinOrdenes)return '<tr onclick="selDia(\''+r.dia+'\')" style="cursor:pointer"><td>'+r.dia+'</td><td colspan="6" style="color:var(--tx3)">Sin \u00f3rdenes cargadas este d\u00eda</td></tr>';
+      var pend=r.pend&&!r.expTot;
+      var col=r.pct>=50?'var(--dn)':r.pct>=25?'var(--wn)':'var(--ok)';
+      return '<tr onclick="selDia(\''+r.dia+'\')" style="cursor:pointer"><td>'+r.dia+'</td><td>'+r.nOrd+'</td>'+
+        '<td>'+(pend?'\u2014':fmtKm(r.expTot))+'</td><td>'+(pend?'\u2014':fmtKm(r.realTot))+'</td>'+
+        '<td style="font-weight:600;color:'+col+'">'+(pend?'\u23f3':(r.extra>=0?'+':'')+fmtKm(r.extra))+'</td>'+
+        '<td style="color:'+col+'">'+(pend||!r.expTot?'':(r.pct>=0?'+':'')+Math.round(r.pct)+'%')+'</td>'+
+        '<td>'+(r.marcados?'<span class="bd bdw">'+r.marcados+'</span>':'<span style="color:var(--tx3)">0</span>')+'</td></tr>';
+    }).join('');
+    var colT=s.pct>=50?'var(--dn)':s.pct>=25?'var(--wn)':'var(--ok)';
+    var tot=s.expTot?'<tr style="background:var(--sf2);font-weight:600"><td>Total</td><td>'+s.nOrd+'</td><td>'+fmtKm(s.expTot)+'</td><td>'+fmtKm(s.realTot)+'</td><td style="color:'+colT+'">'+(s.extra>=0?'+':'')+fmtKm(s.extra)+'</td><td style="color:'+colT+'">'+(s.pct>=0?'+':'')+Math.round(s.pct)+'%</td><td>'+s.marcados+'</td></tr>':'';
+    body='<div class="tw"><table><thead><tr><th>D\u00eda</th><th>Paradas con orden</th><th>Km esperados</th><th>Km reales</th><th>Km extra</th><th>Desv\u00edo</th><th>Tramos marcados</th></tr></thead><tbody>'+filas+tot+'</tbody></table></div>'+
+      '<div class="desv-hint">Toc\u00e1 un d\u00eda para ver tramo por tramo.</div>';
+  }else{
+    var r=s.dias[0];
+    if(!r||r.sinOrdenes){
+      body='<div class="desv-hint" style="padding:12px 14px">Este d\u00eda no tiene clientes cargados en las paradas. Complet\u00e1 los clientes (o import\u00e1 el cruce) para calcular el recorrido esperado.</div>';
+    }else{
+      var colD=r.pct>=50?'var(--dn)':r.pct>=25?'var(--wn)':'var(--ok)';
+      var resumen='<div class="desv-sum">'+
+        '<div><span>Esperado</span><b>'+(r.pend&&!r.expTot?'\u2014':fmtKm(r.expTot))+'</b></div>'+
+        '<div><span>Real</span><b>'+(r.pend&&!r.expTot?'\u2014':fmtKm(r.realTot))+'</b></div>'+
+        '<div><span>Km extra</span><b style="color:'+colD+'">'+(r.pend&&!r.expTot?'\u23f3':(r.extra>=0?'+':'')+fmtKm(r.extra)+' ('+(r.pct>=0?'+':'')+Math.round(r.pct)+'%)')+'</b></div>'+
+        (r.kmFuera>0?'<div title="Km despu\u00e9s de la \u00faltima orden o regreso a PROA, que no entran en el c\u00e1lculo"><span>Despu\u00e9s de la \u00faltima orden</span><b>'+fmtKm(r.kmFuera)+'</b></div>':'')+
+        '</div>';
+      var legs=r.legs.map(function(lg,i){
+        var on=DESV_SEL&&DESV_SEL.dia===aD&&DESV_SEL.idx===i;
+        var cls='desv-leg'+(lg.nivel?' '+lg.nivel:'')+(on?' on':'');
+        var cifras=lg.exp==null?'Calculando...':
+          (lg.baseBase?'Sin orden entre medio \u00b7 real '+fmtKm(lg.real):
+          'Esperado '+fmtKm(lg.exp)+' \u00b7 real '+fmtKm(lg.real)+' \u00b7 <b>'+(lg.extra>=0?'+':'')+fmtKm(lg.extra)+'</b>');
+        return '<div class="'+cls+'" onclick="toggleDesvLeg('+i+')">'+
+          '<div class="desv-leg-t">'+lg.A.nombre+(lg.A.hora?' <span>'+lg.A.hora+'</span>':'')+' &#8594; '+lg.B.nombre+(lg.B.hora?' <span>'+lg.B.hora+'</span>':'')+
+          (lg.nivel?' <em>'+(lg.nivel==='dn'?'Desv\u00edo alto':'Revisar')+'</em>':'')+'</div>'+
+          '<div class="desv-leg-c">'+cifras+'</div>'+
+          (notasLeg(lg,false)?'<div class="desv-leg-n">'+notasLeg(lg,false)+'</div>':'')+
+        '</div>';
+      }).join('');
+      body=resumen+'<div class="desv-legs">'+legs+'</div>'+
+        '<div class="desv-hint">Toc\u00e1 un tramo para verlo en el mapa: <b style="color:#7c3aed">violeta</b> es lo que hizo el m\u00f3vil, <b style="color:#16a34a">verde punteado</b> el camino esperado.</div>';
+    }
+  }
+  w.innerHTML='<div class="ts desv-card">'+head+body+'</div>';
+}
+function selDia(d){
+  var b=null;document.querySelectorAll('.df .db').forEach(function(x){if(x.textContent.trim()===d)b=x});
+  if(b)chDay(d,b);
+}
+function toggleDesvLeg(i){
+  DESV_SEL=(DESV_SEL&&DESV_SEL.dia===aD&&DESV_SEL.idx===i)?null:{dia:aD,idx:i};
+  TRAMO_SEL=-1;
+  var m=DATA[aM];
+  rMapa(m,MAPA_FILTRO_ACTUAL);renderPlayerControls(m);updDesvio(m);
+}
+function verDesvio(dia,idx){
+  if(aD!==dia)selDia(dia);
+  DESV_SEL={dia:dia,idx:idx};TRAMO_SEL=-1;
+  var m=DATA[aM];
+  rMapa(m,MAPA_FILTRO_ACTUAL);renderPlayerControls(m);updDesvio(m);
+  var el=document.getElementById('mmap');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'});
+}
+/* Tramo real del GPS entre dos anclas: por horario si el trazado lo tiene, si no por cercanía */
+function segmentoRealLeg(m,lg){
+  var ruta=rutaParaMovil(m),pts=ruta&&ruta[aD];
+  var fallback=[[lg.A.lat,lg.A.lon]].concat(lg.inter.filter(function(x){return x.lat&&x.lon}).map(function(x){return[x.lat,x.lon]})).concat([[lg.B.lat,lg.B.lon]]);
+  if(!pts||pts.length<2)return fallback;
+  if(pts[0].length>2&&lg.B.p){
+    var tB=tsParada(lg.B.p);
+    var tA=lg.A.p?(tsParada(lg.A.p)+(lg.A.p.durMin||0)*60000):-Infinity;
+    if(tB!=null&&tA!=null){
+      var seg=pts.filter(function(p){var t=new Date(p[2]).getTime();return t>=tA-90000&&t<=tB+90000}).map(function(p){return[p[0],p[1]]});
+      if(seg.length>=2)return[[lg.A.lat,lg.A.lon]].concat(seg).concat([[lg.B.lat,lg.B.lon]]);
+    }
+  }
+  var i0=puntoMasCercanoIdx(pts,{lat:lg.A.lat,lng:lg.A.lon}),i1=puntoMasCercanoIdx(pts,{lat:lg.B.lat,lng:lg.B.lon});
+  if(i0<0||i1<0||i1<=i0)return fallback;
+  return pts.slice(i0,i1+1).map(function(p){return[p[0],p[1]]});
+}
+function dibujarDesvioSel(m){
+  if(!DESV_SEL||DESV_SEL.dia!==aD||!LM2)return;
+  var r=analizarDia(m,aD),lg=r.legs[DESV_SEL.idx];
+  if(!lg){DESV_SEL=null;return;}
+  var mapa=LM2;
+  var base=RUTA_DIA_LAYERS[aD];if(base)base.setStyle({opacity:.12});
+  var seg=segmentoRealLeg(m,lg);
+  L.polyline(seg,{color:'#7c3aed',weight:6,opacity:.9}).addTo(mapa).bindTooltip('Lo que hizo: '+fmtKm(lg.real),{sticky:true});
+  var recta=null;
+  if(!lg.baseBase)recta=L.polyline([[lg.A.lat,lg.A.lon],[lg.B.lat,lg.B.lon]],{color:'#16a34a',weight:3,opacity:.6,dashArray:'6,8'}).addTo(mapa);
+  [[lg.A,'A'],[lg.B,'B']].forEach(function(x){
+    var ic=L.divIcon({className:'',html:'<div style="background:#16a34a;color:#fff;border:2px solid #fff;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.35);white-space:nowrap">'+x[1]+' \u00b7 '+x[0].nombre+'</div>',iconAnchor:[-8,10]});
+    L.marker([x[0].lat,x[0].lon],{icon:ic,zIndexOffset:2500,interactive:false}).addTo(mapa);
+  });
+  mapa.fitBounds(seg.concat([[lg.A.lat,lg.A.lon],[lg.B.lat,lg.B.lon]]),{padding:[50,50],maxZoom:16});
+  if(!lg.baseBase){
+    osrmGeom(lg.A,lg.B).then(function(g){
+      if(LM2!==mapa)return;
+      if(recta)mapa.removeLayer(recta);
+      L.polyline(g,{color:'#16a34a',weight:5,opacity:.9,dashArray:'8,8'}).addTo(mapa).bindTooltip('Camino esperado: '+fmtKm(lg.exp),{sticky:true});
+    }).catch(function(){});
+  }
+}
 
 /* === HELPERS === */
 function flat(fn){return DATA.reduce(function(a,m){return a.concat(fn(m))},[])}
