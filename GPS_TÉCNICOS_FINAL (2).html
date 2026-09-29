@@ -1119,7 +1119,7 @@ function renderPlayerControls(m){
   if(aD==='todos'){cont.innerHTML='';TRAMO_SEL=-1;return;}
   var ruta=rutaParaMovil(m);
   var pts=ruta&&ruta[aD];
-  if(!pts||pts.length<2){cont.innerHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.</div>';TRAMO_SEL=-1;return;}
+  if(!pts||pts.length<2){cont.innerHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">'+(SUPERVISOR_MODE?'Este reporte no tiene el recorrido GPS de este d\u00eda publicado.':'Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.')+'</div>';TRAMO_SEL=-1;return;}
   var conTiempo=pts[0].length>2&&pts[pts.length-1].length>2;
   var t0=conTiempo?new Date(pts[0][2]).getTime():0;
   var t1=conTiempo?new Date(pts[pts.length-1][2]).getTime():0;
@@ -2097,6 +2097,7 @@ function loadHistReport(path){
   fetch(path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('404');return r.json();}).then(async function(j){
     DATA=j.data||[];GAS=j.gas||[];
     if(j.gc)Object.assign(GC,j.gc);
+    aplicarRutasReporte(j.rutas);
     aD='todos';aM=0;
     calcAl();
     ld(true,'Consultando clima...');
@@ -2128,7 +2129,10 @@ async function exportToHistorial(){
     var d0ord=d0.split('/').reverse().join('-'),d1ord=d1.split('/').reverse().join('-');
     var idBase=(d0ord+'_a_'+d1ord+'_'+moviles.join('-')).replace(/[^a-zA-Z0-9_\-]/g,'');
     var fname='reportes/'+idBase+'.json';
-    var payload={version:1,desde:d0,hasta:d1,moviles:moviles,data:DATA,gas:GAS,gc:GC,guardado:new Date().toISOString()};
+    var rutasPub=rutasDelReporte();
+    var sinRuta=movilesSinRuta(rutasPub);
+    var avisoRutas=sinRuta.length?' (sin recorrido GPS: '+sinRuta.join(', ')+')':'';
+    var payload={version:2,desde:d0,hasta:d1,moviles:moviles,data:DATA,gas:GAS,gc:GC,rutas:rutasPub,guardado:new Date().toISOString()};
     var entry={id:idBase,desde:d0,hasta:d1,moviles:moviles,archivo:fname,subido:new Date().toLocaleDateString('es-AR')};
     var idx=(HIST_INDEX||[]).filter(function(e){return e.id!==idBase});
     idx.push(entry);
@@ -2140,7 +2144,7 @@ async function exportToHistorial(){
       await publishToGithub(idBase,fname,JSON.stringify(payload),JSON.stringify(idx));
       ld(false);
       borrarBorrador();
-      toast('\u2713 Publicado directo en GitHub \u2014 ya est\u00e1 disponible para los supervisores');
+      toast('\u2713 Publicado directo en GitHub \u2014 ya est\u00e1 disponible para los supervisores'+avisoRutas);
       return;
     }
 
@@ -2148,7 +2152,7 @@ async function exportToHistorial(){
     setTimeout(function(){downloadJSON(idx,'index.json');},300);
     ld(false);
     borrarBorrador();
-    toast('\u2713 Se descargaron 2 archivos \u2014 subilos a la carpeta reportes/ en GitHub');
+    toast('\u2713 Se descargaron 2 archivos \u2014 subilos a la carpeta reportes/ en GitHub'+avisoRutas);
   }catch(e){
     ld(false);
     alert('Error: '+e.message+'\n\nRevis\u00e1 el token/configuraci\u00f3n de GitHub (bot\u00f3n \u2699\ufe0f GitHub), o guardalo manual con Guardar sesi\u00f3n mientras tanto.');
@@ -2223,6 +2227,36 @@ function parseCSVCruce(text){
     vals.push(cur);
     return vals;
   });
+}
+/* Rutas que viajan dentro del reporte publicado / sesión (solo los móviles y días del reporte) */
+function rutasDelReporte(){
+  var out={};
+  DATA.forEach(function(m){
+    var key=Object.keys(RUTAS_GPS).find(function(k){return m.label.indexOf(k)===0;});
+    if(!key)return;
+    diasMovil(m).forEach(function(d){
+      var pts=RUTAS_GPS[key][d];
+      if(!pts||pts.length<2)return;
+      (out[key]=out[key]||{})[d]=pts.map(function(x){
+        var y=x.slice();
+        if(typeof y[0]==='number')y[0]=Math.round(y[0]*1e5)/1e5;
+        if(typeof y[1]==='number')y[1]=Math.round(y[1]*1e5)/1e5;
+        return y;
+      });
+    });
+  });
+  return out;
+}
+function movilesSinRuta(rutas){
+  var keys=Object.keys(rutas||{});
+  return DATA.filter(function(m){return !keys.some(function(k){return m.label.indexOf(k)===0;});}).map(function(m){return m.label;});
+}
+function aplicarRutasReporte(r){
+  // Se cargan en memoria (no se guardan en localStorage para no pisar las rutas propias)
+  if(!r||typeof r!=='object')return 0;
+  var n=0;
+  Object.keys(r).forEach(function(mov){RUTAS_GPS[mov]=Object.assign({},RUTAS_GPS[mov]||{},r[mov]);n++;});
+  return n;
 }
 function rutaParaMovil(m){
   var key=Object.keys(RUTAS_GPS).find(function(k){return m.label.indexOf(k)===0;});
@@ -2354,7 +2388,8 @@ function guardarSesion(){
         moviles:movs,
         data:DATA,
         gas:GAS,
-        gc:GC
+        gc:GC,
+        rutas:rutasDelReporte()
       };
       var blob=new Blob([JSON.stringify(sesion)],{type:'application/json'});
       var a=document.createElement('a');
@@ -2378,6 +2413,7 @@ function cargarSesion(file){
       DATA=sesion.data;
       GAS=sesion.gas||[];
       if(sesion.gc)Object.assign(GC,sesion.gc);
+      aplicarRutasReporte(sesion.rutas);
       aD='todos';aM=0;
       calcAl();
       render();
