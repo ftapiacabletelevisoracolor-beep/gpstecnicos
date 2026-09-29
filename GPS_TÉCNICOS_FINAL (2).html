@@ -198,6 +198,7 @@ tbody tr:last-child td{border-bottom:none}
 .desv-leg-t{font-weight:600;color:var(--tx)}.desv-leg-t span{font-weight:400;color:var(--tx3);font-size:11px}
 .desv-leg-t em{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:4px;background:var(--sf2);color:var(--tx2)}
 .desv-leg.dn .desv-leg-t em{color:var(--dn)}.desv-leg.wn .desv-leg-t em{color:var(--wn)}
+.desv-det a{color:var(--ac);text-decoration:none;margin-right:6px;white-space:nowrap}.desv-det a:hover{text-decoration:underline}
 .desv-leg-c{color:var(--tx2);margin-top:2px}.desv-leg-n{color:var(--tx3);font-size:11px;margin-top:3px}
 .al-grp{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--bd);border-left:3px solid var(--tx3);border-radius:var(--rs);margin-bottom:6px;cursor:pointer;background:var(--sf);font-size:12.5px;color:var(--tx)}
 .al-grp:hover{background:var(--sf2)}.al-grp b{margin-left:4px}
@@ -205,6 +206,17 @@ tbody tr:last-child td{border-bottom:none}
 .al-chev{font-size:11px;color:var(--tx3);white-space:nowrap}
 .al-rojo{font-size:10px;font-weight:700;color:var(--dn);background:rgba(220,38,38,.1);padding:1px 6px;border-radius:4px;margin-left:4px}
 .al-grp-body{padding-left:10px;margin-bottom:8px}
+.ai.or{background:rgba(8,145,178,.09);border-color:#0891b2}.ai.or.dvh{background:rgba(220,38,38,.09);border-color:var(--dn)}
+.al-grp.g-or{border-left-color:#0891b2}
+.ord-empty{background:var(--sf);border:1px dashed var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12.5px;color:var(--tx2);margin-bottom:1.25rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ord-chips{display:flex;flex-wrap:wrap;gap:16px;padding:10px 14px;font-size:12.5px;color:var(--tx2)}
+.ord-card .th{flex-wrap:wrap;gap:8px}
+.nov-box{background:rgba(37,99,235,.07);border:1px solid rgba(37,99,235,.3);border-radius:var(--rs);padding:8px 12px;font-size:12.5px;color:var(--tx);margin-bottom:8px;line-height:1.55}
+.sm-box{margin-top:.8rem;background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.35);border-radius:var(--rs);padding:10px 12px;font-size:12px;line-height:1.5}
+.sm-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)}
+.sm-row select{font-size:12px;padding:4px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf);color:var(--tx);max-width:190px}
+.ord-com{margin-top:4px;font-size:11.5px;color:var(--tx2);line-height:1.45}.ord-com span{color:var(--tx3)}
+.ord-cls{margin-top:4px;font-size:11px;padding:2px 5px;border:1px solid var(--bd);border-radius:5px;background:var(--sf);color:var(--tx)}
 .sd-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px dashed var(--bd);background:transparent;color:var(--tx2);cursor:pointer;white-space:nowrap}
 .sd-btn:hover{border-color:var(--wn);color:var(--wn)}
 </style>
@@ -249,6 +261,7 @@ tbody tr:last-child td{border-bottom:none}
       <button class="bo" id="btn-tecnico" onclick="openTecModal()">&#128101; Técnico</button>
       <button class="bo" id="btn-importar-cruce" onclick="document.getElementById('fi-cruce').click()">&#128229; Importar cruce</button>
       <input type="file" id="fi-cruce" accept=".csv" style="display:none" onchange="importarCruce(this.files[0])">
+      <button class="bo" id="btn-ordenes" onclick="openOrdenesModal()">&#128203; &#211;rdenes</button>
       <button class="bo" id="btn-importar-rutas" onclick="document.getElementById('fi-rutas').click()">&#128506;&#65039; Importar rutas GPS</button>
       <input type="file" id="fi-rutas" accept=".json" style="display:none" onchange="importarRutasGPS(this.files[0])">
       <button class="bo" id="btn-exportar-excel" onclick="exportarExcelCompleto()">&#128190; Exportar Excel</button>
@@ -268,7 +281,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="sg" id="sg"></div>
     <div class="ts" id="cmp-wrap" style="display:none">
       <div class="th"><div class="tt">Comparativa de m&#243;viles</div><div style="font-size:11px;color:var(--tx3)">Toc&aacute; una fila para abrir ese m&#243;vil</div></div>
-      <div class="tw"><table><thead><tr><th>M&#243;vil</th><th>Paradas</th><th>Km totales</th><th>Trabajos OK</th><th>Km / trabajo <span title="Km totales de la semana &#247; trabajos realizados. Sirve para comparar entre m&#243;viles, no como medida absoluta: zonas alejadas o clientes dispersos pueden elevar el n&#250;mero sin que haya ineficiencia real. El &#9888;&#65039; marca los que superan el promedio del grupo en +40%, para revisar con contexto. Los m&#243;viles sin &#243;rdenes a domicilio no entran en el promedio." style="cursor:help;color:var(--tx3);font-weight:400">&#9432;</span></th><th>Km extra <span title="Km recorridos de m&#225;s respecto del camino esperado entre la base y las &#243;rdenes (ver detalle en cada m&#243;vil)." style="cursor:help;color:var(--tx3);font-weight:400">&#9432;</span></th></tr></thead><tbody id="cmp-tbl"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th>M&#243;vil</th><th>Paradas</th><th>Km totales</th><th>Trabajos OK</th><th>Km / trabajo <span title="Km totales de la semana &#247; trabajos realizados. Sirve para comparar entre m&#243;viles, no como medida absoluta: zonas alejadas o clientes dispersos pueden elevar el n&#250;mero sin que haya ineficiencia real. El &#9888;&#65039; marca los que superan el promedio del grupo en +40%, para revisar con contexto. Los m&#243;viles sin &#243;rdenes a domicilio no entran en el promedio." style="cursor:help;color:var(--tx3);font-weight:400">&#9432;</span></th><th>Km extra <span title="Km recorridos de m&#225;s respecto del camino esperado entre la base y las &#243;rdenes (ver detalle en cada m&#243;vil)." style="cursor:help;color:var(--tx3);font-weight:400">&#9432;</span></th><th>&#211;rdenes visitadas</th></tr></thead><tbody id="cmp-tbl"></tbody></table></div>
     </div>
     <div class="sl">M&#243;viles</div>
     <div class="tabs" id="tabs"></div>
@@ -321,6 +334,51 @@ tbody tr:last-child td{border-bottom:none}
       <button class="ubtn" style="flex:1" onclick="guardarEdicionParada()">Guardar</button>
       <button class="bo" onclick="closeParadaEditModal()">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="ordenesModal">
+  <div class="modal-bx" style="max-width:560px">
+    <div class="modal-hd"><h3>&#128203; &#211;rdenes asignadas</h3><button class="modal-x" onclick="closeOrdenesModal()">&#10005;</button></div>
+    <div style="border:1px solid var(--bd);border-radius:var(--rs);padding:10px 12px;margin-bottom:1rem">
+      <div style="font-size:12.5px;font-weight:600;margin-bottom:8px;color:var(--tx)">&#9889; Traer autom&#225;tico de la planilla</div>
+      <div class="modal-fl"><label>URL del lector (Apps Script, termina en /exec)</label><input id="plan-url" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div class="modal-fl"><label>Clave del lector</label><input id="plan-clave" type="password"></div>
+      <div class="modal-fl"><label>Link de la planilla del mes (uno por l&#237;nea; si la semana cruza de mes, pon&#233; los dos)</label><textarea id="plan-links" class="obs-ta" style="min-height:52px;font-size:11px;font-family:var(--fm)" placeholder="https://docs.google.com/spreadsheets/d/.../edit"></textarea></div>
+      <button class="ubtn" style="width:100%" onclick="traerDePlanilla()">Traer &#243;rdenes y comentarios del per&#237;odo del reporte</button>
+    </div>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:.5rem">O a mano, como antes:</div>
+    <div style="font-size:12px;color:var(--tx2);line-height:1.6;margin-bottom:.6rem"><b>1.</b> En la planilla compartida, seleccion&#225; los d&#237;as del reporte (desde la fila de la fecha hasta "Total tareas") y copialos. Pegalos ac&#225;: se toman m&#243;vil, tarea, cliente y estado.</div>
+    <textarea id="ord-paste" class="obs-ta" style="min-height:100px;font-family:var(--fm);font-size:11px" placeholder="Peg&#225; ac&#225; las celdas copiadas de la planilla (Ctrl+V)"></textarea>
+    <div style="margin:.5rem 0 1rem"><button class="ubtn" style="width:100%" onclick="cargarPlanillaOrdenes()">Cargar planilla</button></div>
+    <div style="font-size:12px;color:var(--tx2);line-height:1.6;margin-bottom:.5rem"><b>2.</b> Ubicaci&#243;n de los clientes: carg&#225; el CSV del extractor de SIGA. Las que falten se pueden buscar en la base NAP o pegar a mano en el detalle del m&#243;vil. Quedan guardadas para los pr&#243;ximos reportes.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <label class="bo" style="cursor:pointer">&#128194; CSV del extractor SIGA<input type="file" accept=".csv" style="display:none" onchange="importarCSVClientes(this.files[0]);this.value=''"></label>
+      <button class="bo" onclick="buscarFaltantesNAP()">&#128273; Buscar faltantes en NAP</button>
+    </div>
+    <div id="ord-log" style="margin-top:1rem;font-size:12px;line-height:1.6;color:var(--tx)"></div>
+  </div>
+</div>
+
+<div class="modal-ov" id="nuevaParadaModal">
+  <div class="modal-bx">
+    <div class="modal-hd"><h3>&#10133; Agregar parada</h3><button class="modal-x" onclick="closeNuevaParada()">&#10005;</button></div>
+    <div id="np-info" style="font-size:12px;color:var(--tx2);line-height:1.6;margin-bottom:1rem"></div>
+    <div style="display:flex;gap:8px">
+      <div class="modal-fl" style="flex:1"><label>Hora de llegada</label><input id="np-hora" type="time" oninput="npActualizarPos()"></div>
+      <div class="modal-fl" style="flex:1"><label>Duraci&#243;n (min)</label><input id="np-dur" type="number" min="1" value="3"></div>
+    </div>
+    <div class="modal-fl"><label>Ubicaci&#243;n (lat, lon)</label><input id="np-coords" placeholder="-34.6123, -68.3345" oninput="NP&&(NP.auto=false);npInfoPos()"></div>
+    <div class="modal-fl"><label>Cliente (n&#250;mero, nombre, o &quot;PROA&quot;)</label><input id="np-cliente" placeholder="Ej: 4521"></div>
+    <div class="modal-fl"><label>&#191;Trabajo realizado?</label>
+      <select id="np-trabajo"><option value="">&#8212; sin definir &#8212;</option><option value="SI">S&#205;</option><option value="NO">NO</option></select>
+    </div>
+    <div class="modal-fl"><label>Observaci&#243;n / Conformidad</label><select id="np-conf"></select></div>
+    <div style="display:flex;gap:8px">
+      <button class="ubtn" style="flex:1" onclick="guardarNuevaParada()">Agregar parada</button>
+      <button class="bo" onclick="closeNuevaParada()">Cancelar</button>
+    </div>
+    <div class="modal-hint">Queda marcada con &#9997;&#65039; como parada agregada a mano. Si hay trazado GPS cargado, los km del d&#237;a se vuelven a medir con la parada nueva.</div>
   </div>
 </div>
 
@@ -544,6 +602,7 @@ function gasProx(la,lo){
 
 /* === LEER ARCHIVO === */
 function handleFile(file){
+  RUTAS_REPORTE={};
   if(!file)return;
   ld(true,'Leyendo archivo...');
   var rd=new FileReader();
@@ -830,7 +889,7 @@ function b64DecodeUnicode(str){return decodeURIComponent(escape(atob(str)));}
 async function ghApiGetFile(path){
   var owner=ghGet('owner'),repo=ghGet('repo'),branch=ghGet('branch')||'main',token=ghGet('token');
   var url='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path+'?ref='+encodeURIComponent(branch);
-  var r=await fetch(url,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}});
+  var r=await fetch(url,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.object'}});
   if(r.status===404)return null;
   if(!r.ok){var t='';try{t=(await r.json()).message||'';}catch(e){}throw new Error('No se pudo leer '+path+' (HTTP '+r.status+') '+t);}
   return r.json();
@@ -914,6 +973,7 @@ async function addTecnico(){
 
 /* === CALCULAR ALERTAS === */
 function calcAl(){
+  autoMarcarEstaciones();
   DATA.forEach(function(m){
     var tokDef=m.tecs.filter(function(t){return t.lat&&t.lon});
     m.paradas.forEach(function(p){
@@ -977,6 +1037,7 @@ function calcAl(){
 /* === RENDER DASHBOARD === */
 function render(){
   calcKmGps(false);
+  resolverCoordsOrdenes();DATA.forEach(evaluarOrdenes);
   document.getElementById('up').style.display='none';
   document.getElementById('dash').style.display='block';
   var movStr=DATA.map(function(m){return m.label}).join(', ');
@@ -1023,6 +1084,8 @@ function renderComparativa(){
       (f.sd?'<td><span class="bd bdn2" title="'+escA(sinDomMotivo(f.m))+'">&#128295; Sin \u00f3rdenes a domicilio</span></td>':
       '<td style="'+(effAlto?'color:var(--wn);font-weight:600':'')+'">'+effTxt+(effAlto?' &#9888;':'')+'</td>')+
       '<td>'+cmpKmExtra(f)+'</td>'+
+      '<td>'+(function(){if(f.sd||!f.m.ordenes||!f.m.ordenes.length)return '\u2014';var r=resumenOrdenes(f.m,'todos');
+        return r.vis+'/'+r.tot+(r.fNo?' <span class="bd bdn" title="Finalizadas en la planilla sin visita en el GPS">'+r.fNo+' sin visita</span>':'');})()+'</td>'+
       '</tr>';
   }).join('');
 }
@@ -1119,7 +1182,7 @@ function renderPlayerControls(m){
   if(aD==='todos'){cont.innerHTML='';TRAMO_SEL=-1;return;}
   var ruta=rutaParaMovil(m);
   var pts=ruta&&ruta[aD];
-  if(!pts||pts.length<2){cont.innerHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">'+(SUPERVISOR_MODE?'Este reporte no tiene el recorrido GPS de este d\u00eda publicado.':'Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.')+'</div>';TRAMO_SEL=-1;return;}
+  if(!pts||pts.length<2){cont.innerHTML='<div style="font-size:11px;color:var(--tx3);margin:6px 0">Import\u00e1 las rutas GPS para poder reproducir el recorrido de este d\u00eda.</div>';TRAMO_SEL=-1;return;}
   var conTiempo=pts[0].length>2&&pts[pts.length-1].length>2;
   var t0=conTiempo?new Date(pts[0][2]).getTime():0;
   var t1=conTiempo?new Date(pts[pts.length-1][2]).getTime():0;
@@ -1273,7 +1336,7 @@ function detenerReproduccion(){
   if(PLAYER.marker){try{LM2.removeLayer(PLAYER.marker);}catch(e){}}
   PLAYER={activo:false,marker:null,raf:null,pts:null,conTiempo:false,t0:0,t1:0,frac:0,pausado:true,tAnimBase:0,velocidad:1,duracionBase:30000,timeEl:null};
 }
-function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();TRAMO_SEL=-1;DESV_SEL=null;document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
+function sw(i){aM=i;aD='todos';SEL_PARADAS.clear();TRAMO_SEL=-1;DESV_SEL=null;ORD_SEL=null;document.querySelectorAll('#tabs .tab').forEach(function(t,j){t.classList.toggle('on',j===i)});renderPanel(DATA[i])}
 function eliminarDia(mi,dia){
   var m=DATA[mi];
   var cant=m.paradas.filter(function(p){return p.fec===dia}).length;
@@ -1340,6 +1403,7 @@ function renderPanel(m){
         '<div class="mli"><div class="mld" style="background:#9333ea"></div>Domicilio</div>'+
         '<div class="mli"><div class="mld" style="background:#ea580c"></div>Gasolinera</div>'+
         '<div class="mli"><div class="mld" style="background:#6b6760"></div>PROA</div>'+
+        (m.ordenes&&m.ordenes.length?'<div class="mli"><div class="mld" style="background:#16a34a;border-radius:3px"></div>Orden asignada (verde visitada, roja finalizada sin visita)</div>':'')+
       '</div>'+
     '</div>':'';
 
@@ -1362,8 +1426,8 @@ function renderPanel(m){
     '<div id="obs-wrap"></div>'+
     '<div id="notas-wrap"></div>'+
     '<div id="nap-search-wrap"></div>'+
-    mapH+dbts+'<div id="player-ctrl"></div>'+'<div id="desv-wrap"></div>'+'<div id="tdw"></div>'+
-    '<div class="ts"><div class="th"><div class="tt">Detalle de paradas</div><div style="font-size:11px;color:var(--tx3)" id="tc"></div></div>'+
+    mapH+dbts+'<div id="player-ctrl"></div>'+'<div id="desv-wrap"></div>'+'<div id="ord-wrap"></div>'+'<div id="tdw"></div>'+
+    '<div class="ts"><div class="th"><div class="tt">Detalle de paradas</div><div style="display:flex;gap:10px;align-items:center"><span id="tb-add"></span><div style="font-size:11px;color:var(--tx3)" id="tc"></div></div></div>'+
       '<div class="tw"><table><thead><tr>'+
         '<th>Fecha</th><th>Hora</th><th>N\u00b0</th><th>Ubicaci\u00f3n</th><th>Dist.</th><th>Dur. parada</th>'+
         (m.hC?'<th>Cliente</th>':'')+(m.hT?'<th>Trabajo</th>':'')+'<th>T. Inst/Reclamo</th><th>Obs.</th>'+
@@ -1375,7 +1439,7 @@ function renderPanel(m){
     (m.hC?'<div id="clc-wrap"></div>':'')+
     (m.hT?'<div class="cc"><div class="ct">Efectividad de trabajos</div><div class="cw" style="max-width:340px;margin:0 auto"><canvas id="cpie"></canvas></div></div>':'');
 
-  updKpis(m);updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);updDesvio(m);
+  updKpis(m);updAl(m);updTbl(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);updDesvio(m);updOrdenes(m);
   if(hC)rMapa(m,'t');
   renderPlayerControls(m);
   // Bar chart
@@ -1585,15 +1649,16 @@ function updKpis(m){
     (gasMinF>0?ksi('Min. estación',fD(gasMinF),'gs'):'')+
     (totf>0?ksi('Trabajos OK',okf+'/'+totf,'ok'):'')+
     ksi('Km',kmf,'')+
+    (function(){if(esSinDom(m))return '';var r=resumenOrdenes(m,aD);if(!r.tot)return '';return ksi('&#128203; \u00d3rdenes visitadas',r.vis+'/'+r.tot,r.fNo?'dn':r.vis===r.tot?'ok':'wn');})()+
     kpiKmExtra(m,aD,true)+
     (function(){var n=tramosLentos(m,aD).length;return ksi('&#128034; Tramos lentos',n,n>0?'wn':'');})();
 }
 
 function chDay(d,btn){
   aD=d;
-  TRAMO_SEL=-1;DESV_SEL=null;
+  TRAMO_SEL=-1;DESV_SEL=null;ORD_SEL=null;
   document.querySelectorAll('.db').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');
-  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);updDesvio(m);
+  var m=DATA[aM];updKpis(m);updTbl(m);updAl(m);buildCli(m);buildObs(m);updTrabCounter(m);buildNotas(m);buildNapSearch();updTecDia(m);updDesvio(m);updOrdenes(m);
   if(m.hCoord&&m.paradas.some(function(p){return p.lat&&p.lon}))rMapa(m,'t');
   renderPlayerControls(m);
 }
@@ -1681,20 +1746,22 @@ function getAl(m,dia){
   paradasSinOrden(m,dia).forEach(function(p){
     al.push({lv:'so',f:p.fec,h:p.hora,loc:p.loc,msg:'&#9208;&#65039; Parada de '+fD(p.durMin)+' sin orden asignada'+(p.conf?' ('+p.conf+')':'')});
   });
+  al=al.concat(alertasOrdenes(m,dia));
   al.sort(function(a,b){var fa=fechaOrd(a.f),fb=fechaOrd(b.f);if(fa!==fb)return fa<fb?-1:1;var ha=horaNorm(a.h),hb=horaNorm(b.h);return ha<hb?-1:ha>hb?1:0;});
   return al;
 }
-var GRUPOS_AL={dv:'&#129517; Desv\u00edos de recorrido',sl:'&#128034; Circulaci\u00f3n lenta',so:'&#9208;&#65039; Paradas largas sin orden'};
+var GRUPOS_AL={or:'&#128203; \u00d3rdenes asignadas',dv:'&#129517; Desv\u00edos de recorrido',sl:'&#128034; Circulaci\u00f3n lenta',so:'&#9208;&#65039; Paradas largas sin orden'};
 var AL_ABIERTOS={};
 function toggleGrupoAl(k){AL_ABIERTOS[k]=!AL_ABIERTOS[k];updAl(DATA[aM]);}
 function htmlAlerta(a){
-  var cls='ai '+a.lv+(a.sev==='dn'?' dvh':'')+(a.desv?' clk':'');
-  var clk=a.desv?' onclick="verDesvio(\''+a.desv.dia+'\','+a.desv.idx+')" title="Ver este tramo en el mapa"':'';
+  var cls='ai '+a.lv+(a.sev==='dn'?' dvh':'')+(a.desv||a.ord?' clk':'');
+  var clk=a.desv?' onclick="verDesvio(\''+a.desv.dia+'\','+a.desv.idx+')" title="Ver este tramo en el mapa"':
+    a.ord?' onclick="verOrden(\''+a.ord.fec+'\',\''+a.ord.nro+'\')" title="Ver en el mapa"':'';
   return '<div class="'+cls+'"'+clk+'><div><div class="ab">'+a.f+' '+a.h+' \u2014 '+a.loc+'</div><div class="am">'+a.msg+'</div></div></div>';
 }
 function updAl(m){
   var al=getAl(m,aD),c=document.getElementById('alc');if(!c)return;
-  if(!al.length){c.innerHTML='<div class="na">Sin alertas para el per\u00edodo seleccionado</div>';return;}
+  if(!al.length){c.innerHTML=htmlNovedades(m)+'<div class="na">Sin alertas para el per\u00edodo seleccionado</div>';return;}
   var princ=al.filter(function(a){return !GRUPOS_AL[a.lv]});
   var html=princ.map(htmlAlerta).join('');
   Object.keys(GRUPOS_AL).forEach(function(k){
@@ -1707,7 +1774,7 @@ function updAl(m){
       '<span class="al-chev">'+(ab?'Ocultar &#9652;':'Ver &#9662;')+'</span></div>'+
       (ab?'<div class="al-grp-body">'+items.map(htmlAlerta).join('')+'</div>':'');
   });
-  c.innerHTML=html;
+  c.innerHTML=htmlNovedades(m)+html;
 }
 
 /* === TABLA === */
@@ -1715,6 +1782,8 @@ function updTbl(m){
   var ps=pFilt(m),tb=document.getElementById('tb'),tc=document.getElementById('tc');if(!tb)return;
   var lentos=new Map();tramosLentos(m,aD).forEach(function(t){lentos.set(t.p,t)});
   if(tc)tc.textContent=ps.length+' registros'+(SEL_PARADAS.size?' \u2014 '+SEL_PARADAS.size+' seleccionada(s)':'');
+  var tba=document.getElementById('tb-add');
+  if(tba)tba.innerHTML=(!SUPERVISOR_MODE&&aD!=='todos')?'<button class="mfb" onclick="abrirNuevaParada()">&#10133; Agregar parada</button>':'';
   tb.innerHTML=ps.map(function(p){
     var pidx=m.paradas.indexOf(p);
     var il=!p.isP&&!p.isPn&&p.durMin>=LM;
@@ -1725,6 +1794,7 @@ function updTbl(m){
     var dm=p.dA?'<span class="bd bdm">&#127968; '+p.dA.dist+'m</span>':'';
     var gm=p.gA?'<span class="bd '+(p.gA.multi?'bdgm':'bdg')+'">&#9981;'+(p.gA.multi?' x2+':'')+' '+fD(p.durMin)+'</span>':'';
     var spdb=p.vmax>=100?'<span class="bd" style="background:#fff1f2;color:#e11d48">&#128680; '+p.vmax+' km/h</span>':'';
+    if(p.manual)spdb+=' <span class="bd bdn2" title="Agregada a mano en el dashboard">&#9997;&#65039; manual</span>';
     var lt=lentos.get(p);if(lt)spdb+=' <span class="bd" style="background:rgba(202,138,4,.13);color:#a16207" title="Lleg\u00f3 a esta parada manejando '+fD(lt.min)+' a '+Math.round(lt.kmh)+' km/h de promedio">&#128034; '+Math.round(lt.kmh)+' km/h</span>';
     var sel=SEL_PARADAS.has(pidx);
     var rc=(p.isP?'rp':p.dA?'rd':p.gA?'rg':p.vmax>=100?'rspd':'')+(sel?' row-sel':'');
@@ -1740,10 +1810,10 @@ function updTbl(m){
       (function(){var dx=typeof p.distGps==='number'&&Math.abs(p.distGps-(p.dist||0))>=0.3;
         return '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap"'+(dx?' title="Medido sobre el trazado GPS. El Excel dec\u00eda '+(p.dist||0)+' km"':'')+'>'+kmParada(p)+' km'+(dx?' <span style="color:var(--tx3);font-size:10px">&#128752;</span>':'')+'</td>';})()+
       '<td>'+db2+'</td>'+
-      (m.hC?'<td style="font-family:var(--fm);font-size:11px">'+cliDot+p.cli+'</td>':'')+
+      (m.hC?'<td style="font-family:var(--fm);font-size:11px">'+cliDot+p.cli+(p.cliAuto?' <span class="bd bdn2" title="Asignado autom\u00e1ticamente: la parada est\u00e1 en la puerta de esta orden de la planilla">auto</span>':'')+'</td>':'')+
       (m.hT?'<td>'+tb2+'</td>':'')+
       '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap">'+(p.instMin>0?fD(p.instMin):'\u2014')+'</td>'+
-      '<td>'+ob+' '+(SUPERVISOR_MODE?'':editBtn)+'</td></tr>';
+      '<td>'+ob+(p.comentario?' <span title="'+escA(p.comentario)+'" style="cursor:help">&#128172;</span>':'')+' '+(SUPERVISOR_MODE?'':editBtn+(p.manual?'<button onclick="event.stopPropagation();eliminarParadaManual('+pidx+')" title="Quitar esta parada agregada a mano" style="border:none;background:none;cursor:pointer;font-size:12px;opacity:.5;padding:0 2px">&#128465;&#65039;</button>':''))+'</td></tr>';
   }).join('');
 }
 function editarParadaBtn(pidx){
@@ -1791,6 +1861,10 @@ function guardarEdicionParada(){
   p.cli=document.getElementById('pe-cliente').value.trim();
   p.trab=document.getElementById('pe-trabajo').value;
   p.conf=document.getElementById('pe-conf').value;
+  p.confAuto=false;
+  aprenderUbicacion(DATA[aM],p);
+  aprenderEstacion(p);
+  completarDesdePlanilla();
   closeParadaEditModal();
   calcAl();
   updTbl(DATA[aM]);
@@ -1800,6 +1874,7 @@ function guardarEdicionParada(){
   updTrabCounter(DATA[aM]);
   buildCli(DATA[aM]);
   buildEfectividad(DATA[aM]);
+  evaluarOrdenes(DATA[aM]);updOrdenes(DATA[aM]);
   updDesvio(DATA[aM]);
   ensureDesvios();
   guardarBorradorAuto();
@@ -1937,7 +2012,16 @@ function rMapa(m,f){
       var real=rutaMovil&&rutaMovil[dia];
       var linea=null;
       if(real&&real.length>1){
-        linea=L.polyline(real,{color:m.color,weight:3,opacity:.75}).addTo(LM2).bindPopup('Recorrido real registrado por GPS \u2014 '+dia);
+        linea=L.polyline(real,{color:m.color,weight:3,opacity:.75}).addTo(LM2);
+        if(SUPERVISOR_MODE||real[0].length<3)linea.bindPopup('Recorrido real registrado por GPS \u2014 '+dia);
+        else (function(diaL,realL){
+          linea.on('click',function(e){
+            var c=puntoMasCercano(realL,e.latlng);if(!c)return;
+            var h=horaLocal24(new Date(c[2]));
+            L.popup().setLatLng([c[0],c[1]]).setContent('<div style="font-family:sans-serif;font-size:12px">Recorrido GPS \u2014 '+diaL+' '+h+
+              '<br><button style="margin-top:6px;border:none;background:#2563eb;color:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px" onclick="abrirNuevaParada(\''+diaL+'\',\''+h+'\','+c[0]+','+c[1]+')">&#10133; Agregar parada ac\u00e1</button></div>').openOn(LM2);
+          });
+        })(dia,real);
         RUTA_DIA_LAYERS[dia]=linea;
         if(real[0].length>2){
           linea.bindTooltip('',{sticky:true,direction:'top',opacity:.92,className:'tooltip-hora'});
@@ -1979,7 +2063,7 @@ function rMapa(m,f){
         '<span style="color:#9c9890">V.m\u00e1x</span><span>'+p.vmax+' km/h</span>'+
         (p.cli?'<span style="color:#9c9890">Cliente</span><span>'+p.cli+'</span>':'')+
         (p.trab?'<span style="color:#9c9890">Trabajo</span><span>'+p.trab+'</span>':'')+
-      '</div>'+di+gi+oi+ci+'</div>');
+      '</div>'+di+gi+oi+ci+(p.manual?'<div style="margin-top:6px;font-size:11px;color:#6b6760">&#9997;&#65039; Agregada a mano en el dashboard</div>':'')+'</div>');
     mk.bindTooltip(
       '<div style="font-size:11px;line-height:1.5">'+
       '<b>Parada '+(p.n||'')+'</b> \u2014 '+p.fec+' '+p.hora+
@@ -1992,6 +2076,7 @@ function rMapa(m,f){
     mk.on('click',function(){onParadaClick(pidx);});
     bds.push([p.lat,p.lon]);
   });
+  if(f==='t')dibujarOrdenesMapa(m,bds);
   var selBds=[];
   ps.forEach(function(p){if(SEL_PARADAS.has(m.paradas.indexOf(p)))selBds.push([p.lat,p.lon]);});
   if(selBds.length)LM2.fitBounds(selBds,{padding:[60,60],maxZoom:16});
@@ -2097,7 +2182,11 @@ function loadHistReport(path){
   fetch(path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('404');return r.json();}).then(async function(j){
     DATA=j.data||[];GAS=j.gas||[];
     if(j.gc)Object.assign(GC,j.gc);
-    aplicarRutasReporte(j.rutas);
+    RUTAS_REPORTE=j.rutas?desempaquetarRutas(j.rutas):{};
+    if(j.rutasArchivo){
+      ld(true,'Cargando el recorrido GPS...');
+      try{var rr=await fetch(j.rutasArchivo,{cache:'no-store'});if(rr.ok)RUTAS_REPORTE=desempaquetarRutas(await rr.json());}catch(e){}
+    }
     aD='todos';aM=0;
     calcAl();
     ld(true,'Consultando clima...');
@@ -2120,6 +2209,11 @@ async function exportToHistorial(){
     }catch(e){}
     HIST_LOADED=true;
   }
+  var sinRuta=movilesSinRuta();
+  if(sinRuta.length){
+    ld(false);
+    if(!confirm('No hay trazado GPS importado para: '+sinRuta.join(', ')+'.\n\nSin el trazado, el supervisor no va a ver la ruta ni el reproductor de esos m\u00f3viles. Pod\u00e9s cancelar e importar el JSON de rutas primero.\n\n\u00bfPublicar igual?'))return;
+  }
   ld(true,'Calculando recorridos esperados...');
   await esperarDesvios(90000);
   ld(true,'Preparando archivos para el historial...');
@@ -2129,10 +2223,10 @@ async function exportToHistorial(){
     var d0ord=d0.split('/').reverse().join('-'),d1ord=d1.split('/').reverse().join('-');
     var idBase=(d0ord+'_a_'+d1ord+'_'+moviles.join('-')).replace(/[^a-zA-Z0-9_\-]/g,'');
     var fname='reportes/'+idBase+'.json';
-    var rutasPub=rutasDelReporte();
-    var sinRuta=movilesSinRuta(rutasPub);
-    var avisoRutas=sinRuta.length?' (sin recorrido GPS: '+sinRuta.join(', ')+')':'';
-    var payload={version:2,desde:d0,hasta:d1,moviles:moviles,data:DATA,gas:GAS,gc:GC,rutas:rutasPub,guardado:new Date().toISOString()};
+    var rutasPk=empaquetarRutas();
+    var rutasFile=rutasPk?'reportes/rutas/'+idBase+'.json':null;
+    var payload={version:1,desde:d0,hasta:d1,moviles:moviles,data:DATA,gas:GAS,gc:GC,guardado:new Date().toISOString()};
+    if(rutasPk){if(ghGet('token'))payload.rutasArchivo=rutasFile;else payload.rutas=rutasPk;}
     var entry={id:idBase,desde:d0,hasta:d1,moviles:moviles,archivo:fname,subido:new Date().toLocaleDateString('es-AR')};
     var idx=(HIST_INDEX||[]).filter(function(e){return e.id!==idBase});
     idx.push(entry);
@@ -2141,10 +2235,15 @@ async function exportToHistorial(){
 
     if(ghGet('token')){
       ld(true,'Publicando directo en GitHub...');
+      if(rutasPk){
+        ld(true,'Subiendo el recorrido GPS...');
+        var exR=await ghApiGetFile(rutasFile);
+        await ghApiPutFile(rutasFile,JSON.stringify(rutasPk),exR?exR.sha:null,'Rutas GPS: '+idBase);
+      }
       await publishToGithub(idBase,fname,JSON.stringify(payload),JSON.stringify(idx));
       ld(false);
       borrarBorrador();
-      toast('\u2713 Publicado directo en GitHub \u2014 ya est\u00e1 disponible para los supervisores'+avisoRutas);
+      toast('\u2713 Publicado en GitHub'+(rutasPk?' con el recorrido GPS':'')+' \u2014 ya est\u00e1 disponible para los supervisores');
       return;
     }
 
@@ -2152,7 +2251,7 @@ async function exportToHistorial(){
     setTimeout(function(){downloadJSON(idx,'index.json');},300);
     ld(false);
     borrarBorrador();
-    toast('\u2713 Se descargaron 2 archivos \u2014 subilos a la carpeta reportes/ en GitHub'+avisoRutas);
+    toast('\u2713 Se descargaron 2 archivos \u2014 subilos a la carpeta reportes/ en GitHub');
   }catch(e){
     ld(false);
     alert('Error: '+e.message+'\n\nRevis\u00e1 el token/configuraci\u00f3n de GitHub (bot\u00f3n \u2699\ufe0f GitHub), o guardalo manual con Guardar sesi\u00f3n mientras tanto.');
@@ -2164,6 +2263,42 @@ function downloadJSON(obj,filename){
   a.href=URL.createObjectURL(blob);
   a.download=filename;
   a.click();
+}
+
+/* === TRAZADO GPS EN LO PUBLICADO: solo móviles y días del reporte, comprimido ===
+   Cada punto se guarda como [lat×1e5, lon×1e5, segundos desde el primer punto del día]. */
+function empaquetarRutas(){
+  var out={},n=0;
+  DATA.forEach(function(m){
+    var r=rutaParaMovil(m);if(!r)return;
+    var o={};
+    diasMovil(m).forEach(function(d){
+      var pts=r[d];if(!pts||pts.length<2)return;
+      var t0=pts[0].length>2?new Date(pts[0][2]).getTime():null;
+      o[d]={t0:t0,p:pts.map(function(q){return[Math.round(q[0]*1e5),Math.round(q[1]*1e5),(t0!=null&&q[2])?Math.round((new Date(q[2]).getTime()-t0)/1000):null];})};
+      n+=pts.length;
+    });
+    if(Object.keys(o).length)out[m.label]=o;
+  });
+  return n?out:null;
+}
+function desempaquetarRutas(pk){
+  var out={};
+  Object.keys(pk||{}).forEach(function(mov){
+    out[mov]={};
+    Object.keys(pk[mov]).forEach(function(d){
+      var x=pk[mov][d];
+      out[mov][d]=x.p.map(function(q){var a=[q[0]/1e5,q[1]/1e5];if(x.t0!=null&&q[2]!=null)a.push(new Date(x.t0+q[2]*1000).toISOString());return a;});
+    });
+  });
+  return out;
+}
+function movilesSinRuta(){
+  return DATA.filter(function(m){
+    if(esSinDom(m))return false;
+    var r=rutaParaMovil(m);
+    return !r||!diasMovil(m).some(function(d){return r[d]&&r[d].length>1;});
+  }).map(function(m){return m.label;});
 }
 
 /* === EXPORTAR EXCEL COMPLETO (con Clientes/Trabajo/Conformidad ya cargados) === */
@@ -2189,7 +2324,7 @@ function exportarExcelCompleto(){
         aoa.push(['OBSERVACIONES:', m.obs_manual||'']);
         aoa.push(['N° Parada','Fecha de parada','Hora','Duración de conducción','Distancia (km)','Duración de la parada','Ubicación de Parada','Velocidad máxima','Latitud','Longitud','Clientes','¿Trabajo realizado?','Tiempo de Inst. / Reclamo','Conformidad']);
         m.paradas.forEach(function(p){
-          aoa.push([p.n,p.fec,p.hora,p.durCond||'',kmParada(p),fD2(p.durMin),p.loc,p.vmax,p.lat||'',p.lon||'',p.cli||'',p.trab||'',fD2(p.instMin),p.obs||'']);
+          aoa.push([p.n,p.fec,p.hora,p.durCond||'',kmParada(p),fD2(p.durMin),p.loc,p.vmax,p.lat||'',p.lon||'',p.cli||'',p.trab||'',fD2(p.instMin),p.conf||p.obs||'']);
         });
         var ws=XLSX.utils.aoa_to_sheet(aoa);
         ws['!cols']=[{wch:9},{wch:12},{wch:7},{wch:13},{wch:10},{wch:13},{wch:38},{wch:9},{wch:11},{wch:11},{wch:12},{wch:14},{wch:14},{wch:22}];
@@ -2228,39 +2363,12 @@ function parseCSVCruce(text){
     return vals;
   });
 }
-/* Rutas que viajan dentro del reporte publicado / sesión (solo los móviles y días del reporte) */
-function rutasDelReporte(){
-  var out={};
-  DATA.forEach(function(m){
-    var key=Object.keys(RUTAS_GPS).find(function(k){return m.label.indexOf(k)===0;});
-    if(!key)return;
-    diasMovil(m).forEach(function(d){
-      var pts=RUTAS_GPS[key][d];
-      if(!pts||pts.length<2)return;
-      (out[key]=out[key]||{})[d]=pts.map(function(x){
-        var y=x.slice();
-        if(typeof y[0]==='number')y[0]=Math.round(y[0]*1e5)/1e5;
-        if(typeof y[1]==='number')y[1]=Math.round(y[1]*1e5)/1e5;
-        return y;
-      });
-    });
-  });
-  return out;
-}
-function movilesSinRuta(rutas){
-  var keys=Object.keys(rutas||{});
-  return DATA.filter(function(m){return !keys.some(function(k){return m.label.indexOf(k)===0;});}).map(function(m){return m.label;});
-}
-function aplicarRutasReporte(r){
-  // Se cargan en memoria (no se guardan en localStorage para no pisar las rutas propias)
-  if(!r||typeof r!=='object')return 0;
-  var n=0;
-  Object.keys(r).forEach(function(mov){RUTAS_GPS[mov]=Object.assign({},RUTAS_GPS[mov]||{},r[mov]);n++;});
-  return n;
-}
+var RUTAS_REPORTE={}; // trazado que vino con un reporte publicado o una sesión
 function rutaParaMovil(m){
-  var key=Object.keys(RUTAS_GPS).find(function(k){return m.label.indexOf(k)===0;});
-  return key?RUTAS_GPS[key]:null;
+  var f=function(o){return Object.keys(o).find(function(k){return m.label.indexOf(k)===0;});};
+  var k1=f(RUTAS_GPS),k2=f(RUTAS_REPORTE);
+  if(k1&&k2)return Object.assign({},RUTAS_REPORTE[k2],RUTAS_GPS[k1]);
+  return k1?RUTAS_GPS[k1]:k2?RUTAS_REPORTE[k2]:null;
 }
 function importarRutasGPS(file){
   if(!file)return;
@@ -2389,7 +2497,7 @@ function guardarSesion(){
         data:DATA,
         gas:GAS,
         gc:GC,
-        rutas:rutasDelReporte()
+        rutas:empaquetarRutas()
       };
       var blob=new Blob([JSON.stringify(sesion)],{type:'application/json'});
       var a=document.createElement('a');
@@ -2412,8 +2520,8 @@ function cargarSesion(file){
       if(!sesion.data||!sesion.data.length){alert('Archivo de sesi\u00f3n inv\u00e1lido.');ld(false);return;}
       DATA=sesion.data;
       GAS=sesion.gas||[];
+      RUTAS_REPORTE=sesion.rutas?desempaquetarRutas(sesion.rutas):{};
       if(sesion.gc)Object.assign(GC,sesion.gc);
-      aplicarRutasReporte(sesion.rutas);
       aD='todos';aM=0;
       calcAl();
       render();
@@ -2463,6 +2571,118 @@ function toggleSinDom(mi){
   }
   DESV_SEL=null;
   render();guardarBorradorAuto();
+}
+
+/* --- Paradas agregadas a mano --- */
+var NP=null; // {m, dia, auto}
+function trazaDia(m,dia){var r=rutaParaMovil(m),p=r&&r[dia];return(p&&p.length>1&&p[0].length>2)?p:null;}
+function posEnTraza(pts,ts){
+  for(var i=0;i<pts.length-1;i++){
+    var a=new Date(pts[i][2]).getTime(),b=new Date(pts[i+1][2]).getTime();
+    if(ts>=a&&ts<=b){var f=b>a?(ts-a)/(b-a):0;return[pts[i][0]+(pts[i+1][0]-pts[i][0])*f,pts[i][1]+(pts[i+1][1]-pts[i][1])*f];}
+  }
+  return null;
+}
+// Detenciones de 1 min o más que muestra el trazado entre dos paradas del Excel
+function detencionesLeg(m,lg){
+  var pts=trazaDia(m,aD);if(!pts||!lg.B.p)return[];
+  var tB=tsParada(lg.B.p);
+  var tA=lg.A.p?(tsParada(lg.A.p)+(lg.A.p.durMin||0)*60000):new Date(pts[0][2]).getTime();
+  if(tB==null||tA==null)return[];
+  var out=[];
+  for(var i=0;i<pts.length-1;i++){
+    var a=new Date(pts[i][2]).getTime(),b=new Date(pts[i+1][2]).getTime();
+    if(a<tA+60000||b>tB-60000)continue;
+    var min=(b-a)/60000;
+    if(min>=1&&hav(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1])<40)
+      out.push({hora:horaLocal24(new Date(a)),min:Math.round(min),lat:pts[i][0],lon:pts[i][1]});
+  }
+  return out;
+}
+function abrirNuevaParada(dia,hora,lat,lon,min,cli){
+  var m=DATA[aM];if(!m)return;
+  dia=dia||aD;
+  if(!dia||dia==='todos'){toast('Eleg\u00ed primero un d\u00eda');return;}
+  if(aD!==dia)selDia(dia);
+  NP={m:m,dia:dia,auto:lat==null};
+  document.getElementById('np-conf').innerHTML=document.getElementById('pe-conf').innerHTML;
+  document.getElementById('np-hora').value=hora||'';
+  document.getElementById('np-dur').value=min||3;
+  document.getElementById('np-coords').value=lat!=null?(lat.toFixed(6)+', '+lon.toFixed(6)):'';
+  document.getElementById('np-cliente').value=cli||'';
+  document.getElementById('np-trabajo').value='';
+  document.getElementById('np-conf').value='';
+  if(NP.auto)npActualizarPos();else npInfoPos();
+  document.getElementById('nuevaParadaModal').classList.add('on');
+  setTimeout(function(){document.getElementById(hora?'np-cliente':'np-hora').focus();},50);
+}
+function npActualizarPos(){
+  if(!NP)return;
+  if(NP.auto){
+    var pts=trazaDia(NP.m,NP.dia),h=document.getElementById('np-hora').value;
+    var ts=h?fechaHoraATs(NP.dia,h):null;
+    var pos=(pts&&ts!=null)?posEnTraza(pts,ts):null;
+    if(pos)document.getElementById('np-coords').value=pos[0].toFixed(6)+', '+pos[1].toFixed(6);
+  }
+  npInfoPos();
+}
+function npInfoPos(){
+  if(!NP)return;
+  var tiene=!!trazaDia(NP.m,NP.dia);
+  document.getElementById('np-info').innerHTML='<b>'+NP.m.label+'</b> \u2014 '+NP.dia+'<br>'+
+    (tiene?(NP.auto?'La ubicaci\u00f3n se toma del trazado GPS seg\u00fan la hora que pongas.':'Ubicaci\u00f3n elegida a mano.'):
+    '<span style="color:var(--wn)">No hay trazado GPS importado para este d\u00eda: peg\u00e1 la ubicaci\u00f3n (lat, lon).</span>');
+}
+function closeNuevaParada(){document.getElementById('nuevaParadaModal').classList.remove('on');NP=null;}
+function guardarNuevaParada(){
+  if(!NP)return;
+  var m=NP.m,dia=NP.dia;
+  var hora=horaNorm(document.getElementById('np-hora').value);
+  if(!hora){toast('\u26a0 Falta la hora de llegada');return;}
+  var cc=parseCoords(document.getElementById('np-coords').value);
+  if(cc[0]==null){toast('\u26a0 Falta la ubicaci\u00f3n (lat, lon)');return;}
+  var dur=Math.max(1,parseInt(document.getElementById('np-dur').value)||1);
+  var cli=document.getElementById('np-cliente').value.trim();
+  var trab=document.getElementById('np-trabajo').value;
+  var conf=document.getElementById('np-conf').value;
+  if(!conf&&cli.toUpperCase()==='PROA')conf='PROA';
+  if(!conf&&trab==='SI')conf='OK';
+  if(!conf&&!cli)conf='Parada Breve';
+  var p={n:0,fec:dia,hora:hora,durMin:dur,instMin:0,durCond:'',durCondMin:0,loc:'Parada agregada a mano ('+cc[0].toFixed(5)+', '+cc[1].toFixed(5)+')',
+    dist:0,vmax:0,lat:cc[0],lon:cc[1],cli:cli,trab:trab,obs:conf,conf:conf,isP:cli.toUpperCase()==='PROA',isPn:false,dA:null,gA:null,manual:true};
+  // insertar en orden cronológico dentro del día
+  var pos=-1;
+  for(var i=0;i<m.paradas.length;i++){if(cmpParadas(p,m.paradas[i])<0){pos=i;break;}}
+  if(pos<0)m.paradas.push(p);else m.paradas.splice(pos,0,p);
+  renumerarDia(m,dia);
+  if(trazaDia(m,dia))m.paradas.forEach(function(x){if(x.fec===dia)delete x.distGps;}); // volver a medir el día
+  SEL_PARADAS.clear();
+  closeNuevaParada();
+  calcAl();render();guardarBorradorAuto();
+  toast('\u2713 Parada agregada a las '+hora+(cli?' \u2014 cliente '+cli:''));
+  // Dirección legible (en segundo plano)
+  try{
+    fetch('https://nominatim.openstreetmap.org/reverse?'+new URLSearchParams({lat:cc[0],lon:cc[1],format:'json','accept-language':'es',zoom:18}))
+      .then(function(r){return r.json();}).then(function(j){
+        if(!j||!j.address)return;
+        var a=j.address,calle=a.road||a.pedestrian||'',nro=a.house_number||'';
+        if(!calle)return;
+        p.loc=calle+(nro?' '+nro:'')+', '+(a.city||a.town||a.village||'San Rafael')+' \u270d';
+        if(DATA[aM]===m){updTbl(m);updAl(m);}
+        guardarBorradorAuto();
+      }).catch(function(){});
+  }catch(e){}
+}
+function renumerarDia(m,dia){var k=1;m.paradas.forEach(function(x){if(x.fec===dia)x.n=k++;});}
+function eliminarParadaManual(pidx){
+  var m=DATA[aM],p=m.paradas[pidx];if(!p||!p.manual)return;
+  if(!confirm('\u00bfQuitar la parada agregada a mano de las '+p.hora+(p.cli?' (cliente '+p.cli+')':'')+'?'))return;
+  m.paradas.splice(pidx,1);
+  renumerarDia(m,p.fec);
+  if(trazaDia(m,p.fec))m.paradas.forEach(function(x){if(x.fec===p.fec)delete x.distGps;});
+  SEL_PARADAS.clear();DESV_SEL=null;
+  calcAl();render();guardarBorradorAuto();
+  toast('\u2713 Parada quitada');
 }
 
 /* --- Km medidos sobre el trazado GPS importado --- */
@@ -2804,8 +3024,14 @@ function updDesvio(m){
           (lg.nivel?' <em>'+(lg.nivel==='dn'?'Desv\u00edo alto':'Revisar')+'</em>':'')+'</div>'+
           '<div class="desv-leg-c">'+cifras+'</div>'+
           (notasLeg(lg,false)?'<div class="desv-leg-n">'+notasLeg(lg,false)+'</div>':'')+
+          (function(){var dt=detencionesLeg(m,lg);if(!dt.length)return '';
+            return '<div class="desv-leg-n desv-det">Detenciones sin parada en el trazado: '+dt.map(function(d){
+              return SUPERVISOR_MODE?(d.hora+' ('+d.min+' min)'):'<a href="javascript:void(0)" title="Agregar como parada" onclick="event.stopPropagation();abrirNuevaParada(\''+aD+'\',\''+d.hora+'\','+d.lat+','+d.lon+','+d.min+')">'+d.hora+' \u00b7 '+d.min+' min &#10133;</a>';
+            }).join(' ')+'</div>';})()+
         '</div>';
       }).join('');
+      var acl=(m.ordenes||[]).filter(function(o){return o.fec===aD&&o.coment&&o.coment.length&&claseOrden(o)==='acl';});
+      if(acl.length)resumen+='<div class="desv-hint" style="padding:8px 14px 0">&#128172; Aclaraciones de la planilla: '+acl.map(function(o){return '<b>'+o.nro+'</b> '+escH(corto(textoComent(o),90));}).join(' \u00b7 ')+'</div>';
       body=resumen+'<div class="desv-legs">'+legs+'</div>'+
         '<div class="desv-hint">Toc\u00e1 un tramo para verlo en el mapa: <b style="color:#7c3aed">violeta</b> es lo que hizo el m\u00f3vil, <b style="color:#16a34a">verde punteado</b> el camino esperado.</div>';
     }
@@ -2860,6 +3086,10 @@ function dibujarDesvioSel(m){
     var ic=L.divIcon({className:'',html:'<div style="background:#16a34a;color:#fff;border:2px solid #fff;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.35);white-space:nowrap">'+x[1]+' \u00b7 '+x[0].nombre+'</div>',iconAnchor:[-8,10]});
     L.marker([x[0].lat,x[0].lon],{icon:ic,zIndexOffset:2500,interactive:false}).addTo(mapa);
   });
+  detencionesLeg(m,lg).forEach(function(d){
+    L.circleMarker([d.lat,d.lon],{radius:7,color:'#fff',weight:2,fillColor:'#6b6760',fillOpacity:.95}).addTo(mapa)
+      .bindTooltip('Detenci\u00f3n de '+d.min+' min a las '+d.hora+' (no figura como parada)');
+  });
   mapa.fitBounds(seg.concat([[lg.A.lat,lg.A.lon],[lg.B.lat,lg.B.lon]]),{padding:[50,50],maxZoom:16});
   if(!lg.baseBase){
     osrmGeom(lg.A,lg.B).then(function(g){
@@ -2870,6 +3100,652 @@ function dibujarDesvioSel(m){
   }
 }
 
+/* === ÓRDENES ASIGNADAS (planilla compartida) vs. RECORRIDO GPS === */
+var ORD={radioParada:80,radioParadaMax:200,radioPaso:40};
+var CLI_KEY='ctc_cli_coords_v1';
+var CLI_COORDS=(function(){try{return JSON.parse(localStorage.getItem(CLI_KEY)||'{}');}catch(e){return{};}})();
+var ORD_ABIERTO=false,ORD_SEL=null;
+function guardarCliCoords(){try{localStorage.setItem(CLI_KEY,JSON.stringify(CLI_COORDS));}catch(e){}}
+function normCli(v){return String(v||'').replace(/\D/g,'').replace(/^0+/,'');}
+function fKey(s){var p=String(s||'').trim().split('/');if(p.length!==3)return String(s||'');return p[2]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[0]).slice(-2);}
+function pad2(n){return('0'+n).slice(-2);}
+function sinAcentos(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+
+/* --- Leer el pegado de la planilla (Google Sheets copia con tabulaciones) --- */
+function parseTSV(t){
+  var rows=[],row=[],cur='',q=false;
+  t=String(t||'').replace(/\r\n?/g,'\n');
+  for(var i=0;i<t.length;i++){
+    var ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=ch;}
+    else if(ch==='"'&&cur===''){q=true;}
+    else if(ch==='\t'){row.push(cur);cur='';}
+    else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+    else cur+=ch;
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+var MESES_ES={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+function fechaDeTexto(s){
+  var t=sinAcentos(s).toLowerCase();
+  var m=t.match(/(\d{1,2})\s+de\s+([a-z]+)\s+(?:de|del)\s+(\d{4})/);
+  if(m&&MESES_ES[m[2]])return pad2(m[1])+'/'+pad2(MESES_ES[m[2]])+'/'+m[3];
+  return null;
+}
+function parsePlanilla(txt){
+  var rows=parseTSV(txt),out=[],fecha=null,cols=null,tareas=null;
+  rows.forEach(function(r){
+    var c=r.map(function(x){return String(x||'').trim();});
+    var primera=sinAcentos((c.find(function(x){return x;})||'')).toUpperCase();
+    if(primera==='TAREAS'){tareas=c;return;}
+    if(primera==='MOVIL'){
+      cols=[];
+      c.forEach(function(v,i){
+        var mm=v.match(/^(\d{1,4})\s*([A-Za-z\u00C0-\u017F]*)$/);
+        if(mm&&i>0)cols.push({col:i,movil:parseInt(mm[1],10),emp:mm[2].toUpperCase(),tipo:tareas?(tareas[i]||''):''});
+      });
+      if(!cols.length)cols=null;
+      return;
+    }
+    var f=fechaDeTexto(c.join(' '));
+    if(f&&!c.some(function(v){return /^\d{4,8}$/.test(v)})){fecha=f;cols=null;tareas=null;return;}
+    if(cols&&c.some(function(v){return /^(total tareas|finalizadas|tecnicos)/i.test(sinAcentos(v))})){cols=null;return;}
+    if(!cols||!fecha)return;
+    cols.forEach(function(k){
+      var v=c[k.col]||'';
+      if(!/^\d{4,8}$/.test(v))return;
+      var est=sinAcentos(c[k.col+1]||'').toUpperCase().charAt(0);
+      out.push({movil:k.movil,emp:k.emp,fec:fecha,nro:normCli(v),estado:/[FCP]/.test(est)?est:'',tipo:k.tipo});
+    });
+  });
+  return out;
+}
+function movilPorNumero(num,emp){
+  return DATA.find(function(m){
+    var mm=String(m.label||'').match(/^([A-Za-z]*)\D*(\d+)/);
+    if(!mm||parseInt(mm[2],10)!==num)return false;
+    if(emp&&mm[1]&&mm[1].toUpperCase()!==emp)return false;
+    return true;
+  })||null;
+}
+function diaDeMovil(m,fec){var k=fKey(fec);return diasMovil(m).find(function(d){return fKey(d)===k})||fec;}
+function enRango(m,fec){
+  var a=fKey(m.desde),b=fKey(m.hasta),k=fKey(fec);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(a)||!/^\d{4}-\d{2}-\d{2}$/.test(b))return true;
+  return k>=a&&k<=b;
+}
+
+/* --- Ubicaciones de clientes: caché, CSV del extractor, NAP, manual, o la parada con ese cliente --- */
+function resolverCoordsOrdenes(){
+  DATA.forEach(function(m){(m.ordenes||[]).forEach(function(o){
+    var c=CLI_COORDS[o.nro];
+    if(c){o.nombre=o.nombre||c.nombre||'';o.dir=o.dir||c.dir||'';}
+    if(c&&c.lat){o.lat=c.lat;o.lon=c.lon;o.fuente=c.fuente||'siga';return;}
+    if(o.lat&&o.fuente!=='parada')return;
+    var p=m.paradas.find(function(p){return p.fec===o.fec&&normCli(p.cli)===o.nro&&p.lat&&p.lon});
+    if(p){o.lat=p.lat;o.lon=p.lon;o.fuente='parada';}
+    else if(o.fuente==='parada'){o.lat=null;o.lon=null;o.fuente='';}
+  });});
+}
+
+/* --- Asignar clientes a paradas sin cliente que están en la puerta de una orden --- */
+function autoAsignarParadas(){
+  var n=0;
+  DATA.forEach(function(m){
+    if(esSinDom(m)||!m.ordenes)return;
+    var dias=[...new Set(m.ordenes.map(function(o){return o.fec}))];
+    dias.forEach(function(d){
+      var ps=m.paradas.filter(function(p){return p.fec===d});
+      var yaCli={};ps.forEach(function(p){var c=normCli(p.cli);if(c)yaCli[c]=true;});
+      var pares=[];
+      m.ordenes.filter(function(o){return o.fec===d&&o.lat&&!yaCli[o.nro]}).forEach(function(o){
+        ps.forEach(function(p){
+          if(normCli(p.cli)||esBase(p)||p.isPn||!p.lat||!p.lon||(p.cli||'').trim())return;
+          var dist=hav(o.lat,o.lon,p.lat,p.lon);
+          if(dist<=ORD.radioParada)pares.push({o:o,p:p,d:dist});
+        });
+      });
+      pares.sort(function(a,b){return a.d-b.d});
+      var usadaO={},usadaP=new Set();
+      pares.forEach(function(x){
+        if(usadaO[x.o.nro]||usadaP.has(x.p))return;
+        usadaO[x.o.nro]=true;usadaP.add(x.p);
+        x.p.cli=x.o.nro;x.p.cliAuto=true;
+        if(!x.p.trab){x.p.trab=x.o.estado==='F'?'SI':(x.o.estado?'NO':'');x.p.trabAuto=!!x.p.trab;}
+        if(!x.p.conf&&x.o.estado==='F'){x.p.conf='OK';x.p.obs=x.p.obs||'OK';}
+        n++;
+      });
+    });
+  });
+  return n;
+}
+
+/* --- Estaciones de servicio: se marcan solas por ubicación (OpenStreetMap + las que marcaste vos)
+       o por el nombre en la dirección del GPS. Solo completan la conformidad si está vacía. --- */
+var EST_KEY='ctc_estaciones_v1',EST_RADIO=70;
+var ESTACIONES=(function(){try{return JSON.parse(localStorage.getItem(EST_KEY)||'null')||{osm:[],propias:[],ts:0};}catch(e){return{osm:[],propias:[],ts:0};}})();
+function guardarEstaciones(){try{localStorage.setItem(EST_KEY,JSON.stringify(ESTACIONES));}catch(e){}}
+async function cargarEstacionesOSM(){
+  if(SUPERVISOR_MODE)return;
+  if(ESTACIONES.osm.length&&Date.now()-ESTACIONES.ts<30*864e5)return; // se actualiza una vez por mes
+  try{
+    var q='[out:json][timeout:25];(node["amenity"="fuel"](-35.4,-69.3,-34.2,-67.5);way["amenity"="fuel"](-35.4,-69.3,-34.2,-67.5););out center;';
+    var r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q));
+    var j=await r.json();
+    ESTACIONES.osm=(j.elements||[]).map(function(e){var la=e.lat||(e.center&&e.center.lat),lo=e.lon||(e.center&&e.center.lon);return la?[la,lo,(e.tags&&(e.tags.brand||e.tags.name))||'Estaci\u00f3n']:null;}).filter(Boolean);
+    ESTACIONES.ts=Date.now();guardarEstaciones();
+    if(DATA.length){calcAl();render();}
+  }catch(e){console.warn('Estaciones OSM',e);}
+}
+var RE_EST_LOC=/\b(ypf|shell|axion|puma|gulf|refinor|gnc)\b|estaci[o\u00f3]n de servicio/i;
+function estacionCerca(p){
+  var todas=ESTACIONES.osm.concat(ESTACIONES.propias);
+  for(var i=0;i<todas.length;i++){if(hav(p.lat,p.lon,todas[i][0],todas[i][1])<=EST_RADIO)return todas[i][2]||'Estaci\u00f3n';}
+  return null;
+}
+function autoMarcarEstaciones(){
+  if(SUPERVISOR_MODE)return;
+  DATA.forEach(function(m){m.paradas.forEach(function(p){
+    if(p.conf||p.estQuitada||esBase(p)||esOrden(p)||(p.cli||'').trim())return;
+    var porLoc=RE_EST_LOC.test(p.loc||'');
+    var cerca=(p.lat&&p.lon)?estacionCerca(p):null;
+    if(porLoc||cerca){p.conf='Estaci\u00f3n de servicio';p.confAuto=true;p.estAuto=cerca||'direcci\u00f3n';}
+  });});
+}
+function aprenderEstacion(p){
+  if(p.conf!=='Estaci\u00f3n de servicio'){if(p.estAuto){p.estQuitada=true;p.estAuto=null;}return;} // la sacaste a mano: no se vuelve a marcar
+  if(!p.lat||!p.lon||estacionCerca(p))return;
+  ESTACIONES.propias.push([p.lat,p.lon,'Marcada a mano']);guardarEstaciones();
+}
+
+/* --- Trabajo realizado según la planilla: F = SÍ, P/C = NO (solo si está vacío) --- */
+function completarDesdePlanilla(){
+  DATA.forEach(function(m){
+    if(esSinDom(m)||!m.ordenes)return;
+    m.ordenes.forEach(function(o){
+      if(!o.estado)return;
+      m.paradas.forEach(function(p){
+        if(p.fec!==o.fec||normCli(p.cli)!==o.nro)return;
+        if(!p.trab){p.trab=o.estado==='F'?'SI':'NO';p.trabAuto=true;}
+        if(!p.conf&&o.estado==='F'){p.conf='OK';p.confAuto=true;}
+      });
+    });
+  });
+}
+/* --- Si asignás un cliente a una parada y la coordenada de SIGA no coincide (o no hay),
+       se guarda la ubicación de esa parada como la real del cliente para las próximas veces --- */
+function aprenderUbicacion(m,p){
+  var nro=normCli(p.cli);
+  if(!nro||!p.lat||!p.lon||!m||!m.ordenes)return;
+  var o=m.ordenes.find(function(x){return x.fec===p.fec&&x.nro===nro;});
+  if(!o)return;
+  if(o.lat&&o.fuente!=='parada'&&hav(o.lat,o.lon,p.lat,p.lon)<=ORD.radioParada)return;
+  var prev=CLI_COORDS[nro]||{};
+  CLI_COORDS[nro]={lat:p.lat,lon:p.lon,nombre:prev.nombre||o.nombre||'',dir:prev.dir||o.dir||'',fuente:'gps',antes:prev.lat?[prev.lat,prev.lon]:null};
+  guardarCliCoords();
+  resolverCoordsOrdenes();
+  toast('\u2713 Ubicaci\u00f3n del cliente '+nro+' corregida con la parada del GPS'+(prev.lat?' (estaba a '+Math.round(hav(prev.lat,prev.lon,p.lat,p.lon))+' m)':''));
+}
+
+/* --- ¿El móvil pasó por la orden? --- */
+function trazaCerca(pts,lat,lon,r){
+  var kx=Math.cos(lat*Math.PI/180)*111320,ky=110540,best=null,det=null;
+  for(var i=0;i<pts.length-1;i++){
+    var ax=(pts[i][1]-lon)*kx,ay=(pts[i][0]-lat)*ky,bx=(pts[i+1][1]-lon)*kx,by=(pts[i+1][0]-lat)*ky;
+    var dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy,t=l2>0?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/l2)):0;
+    var px=ax+t*dx,py=ay+t*dy,d=Math.sqrt(px*px+py*py);
+    if(d>r)continue;
+    var ta=new Date(pts[i][2]).getTime(),tb=new Date(pts[i+1][2]).getTime(),min=(tb-ta)/60000;
+    if(Math.sqrt(l2)<40&&min>=1&&(!det||min>det.min))det={hora:horaLocal24(new Date(ta)),min:Math.round(min),d:Math.round(d)};
+    if(!best||d<best.d)best={hora:horaLocal24(new Date(ta+(tb-ta)*t)),d:Math.round(d)};
+  }
+  if(det)return{tipo:'corta',hora:det.hora,min:det.min,d:det.d,traza:true};
+  if(best)return{tipo:'paso',hora:best.hora,d:best.d,traza:true};
+  return null;
+}
+function evaluarOrdenes(m){
+  if(!m||!m.ordenes)return;
+  m.ordenes.forEach(function(o){
+    var ps=m.paradas.filter(function(p){return p.fec===o.fec});
+    var v=null;
+    var pc=ps.filter(function(p){return normCli(p.cli)===o.nro});
+    if(pc.length){
+      var p=pc[0];
+      v={tipo:'parada',hora:horaNorm(p.hora),min:pc.reduce(function(a,x){return a+(x.durMin||0)},0),n:p.n,auto:!!p.cliAuto};
+    }else if(o.lat){
+      var best=null;
+      ps.forEach(function(p){if(!p.lat||!p.lon||esBase(p))return;var d=hav(o.lat,o.lon,p.lat,p.lon);if(!best||d<best.d)best={p:p,d:d};});
+      if(best&&best.d<=ORD.radioParadaMax){
+        v={tipo:best.d<=ORD.radioParada?'parada':'cerca',hora:horaNorm(best.p.hora),min:best.p.durMin,n:best.p.n,d:Math.round(best.d),otroCli:normCli(best.p.cli)||''};
+      }else{
+        var pts=trazaDia(m,o.fec);
+        if(pts)v=trazaCerca(pts,o.lat,o.lon,ORD.radioPaso)||{tipo:'no',traza:true};
+        else if(o.vis&&o.vis.traza)v=o.vis; // conservar lo que se midió cuando había trazado cargado
+        else v={tipo:'no',traza:false};
+      }
+    }else v={tipo:'sinUbic'};
+    o.vis=v;
+  });
+}
+function ordVisitada(o){return o.vis&&(o.vis.tipo==='parada'||o.vis.tipo==='cerca'||o.vis.tipo==='corta');}
+function resumenOrdenes(m,dia){
+  var os=(m.ordenes||[]).filter(function(o){return dia==='todos'||o.fec===dia});
+  var r={tot:os.length,vis:0,fNo:0,paso:0,corta:0,sinUbic:0,os:os};
+  os.forEach(function(o){
+    if(ordVisitada(o))r.vis++;
+    if(o.vis&&o.vis.tipo==='corta')r.corta++;
+    if(o.vis&&o.vis.tipo==='paso')r.paso++;
+    if(o.vis&&o.vis.tipo==='sinUbic')r.sinUbic++;
+    if(o.estado==='F'&&o.vis&&(o.vis.tipo==='no'||o.vis.tipo==='paso')&&claseOrden(o)!=='remoto')r.fNo++;
+  });
+  return r;
+}
+function textoVis(o,corto){
+  var v=o.vis||{};
+  if(claseOrden(o)==='remoto'&&v.tipo!=='parada'&&v.tipo!=='cerca')return '\u260e Resuelto a distancia (sin visita)';
+  if(v.tipo==='parada')return '\u2713 Parada N\u00b0 '+v.n+' a las '+v.hora+' ('+fD(v.min)+')'+(v.d>25?' a '+v.d+' m':'')+(v.otroCli?' \u00b7 cargada como cliente '+v.otroCli:'')+(v.auto&&!corto?' \u2014 cliente asignado por cercan\u00eda':'');
+  if(v.tipo==='cerca')return '\u2713? Parada N\u00b0 '+v.n+' a '+v.d+' m ('+v.hora+')'+(corto?'':' \u2014 revisar ubicaci\u00f3n del cliente en SIGA')+(v.otroCli?' \u00b7 cargada como cliente '+v.otroCli:'');
+  if(v.tipo==='corta')return '\u25d0 Se detuvo '+v.min+' min a las '+v.hora+' (no figura como parada)';
+  if(v.tipo==='paso')return '\u26a0 Pas\u00f3 por la puerta a las '+v.hora+' sin detenerse';
+  if(v.tipo==='no')return v.traza?'\u2717 No pas\u00f3 por el domicilio':'\u2717 Sin parada cerca'+(corto?'':' (import\u00e1 las rutas GPS para ver si pas\u00f3)');
+  if(v.tipo==='sinUbic')return '? Sin ubicaci\u00f3n del cliente';
+  return '';
+}
+function colorOrden(o){
+  var t=o.vis&&o.vis.tipo;
+  if(claseOrden(o)==='remoto'&&t!=='parada'&&t!=='cerca')return '#0891b2';
+  if(t==='parada'||t==='cerca')return '#16a34a';
+  if(o.estado==='C')return '#9c9890';
+  if(t==='corta')return '#d97706';
+  if(t==='paso'||t==='no')return o.estado==='F'?'#dc2626':'#9c9890';
+  return '#9c9890';
+}
+
+/* --- Alertas de órdenes --- */
+function alertasOrdenes(m,dia){
+  var al=[];
+  if(esSinDom(m)||!m.ordenes||!m.ordenes.length)return al;
+  m.ordenes.forEach(function(o){
+    if(dia!=='todos'&&o.fec!==dia)return;
+    var v=o.vis||{},t=(o.tipo?o.tipo+' ':'')+o.nro,base={lv:'or',f:o.fec,h:v.hora||'',loc:'Orden '+t+(o.dir?' \u2014 '+o.dir:''),ord:{fec:o.fec,nro:o.nro}};
+    if(claseOrden(o)==='fue'&&(v.tipo==='no'||v.tipo==='paso')){
+      al.push(Object.assign({},base,{sev:(v.traza||v.tipo==='paso')?'dn':'wn',msg:'&#128172; La planilla dice que fue (\u00ab'+escH(corto(textoComent(o),70))+'\u00bb) pero '+
+        (v.tipo==='paso'?'el m\u00f3vil pas\u00f3 por la puerta a las '+v.hora+' sin detenerse':v.traza?'el GPS no pas\u00f3 por el domicilio':'no hay ninguna parada cerca del domicilio')}));
+      return;
+    }
+    if(claseOrden(o)==='remoto')return;
+    if(o.estado==='F'&&v.tipo==='no')al.push(Object.assign({},base,{sev:'dn',msg:'&#128203; Figura Finalizada en la planilla pero '+(v.traza?'el m\u00f3vil no pas\u00f3 por el domicilio':'no hay ninguna parada cerca del domicilio')+(SUPERVISOR_MODE?'':'. Si se resolvi\u00f3 por tel\u00e9fono, marcala \u00abResuelto a distancia\u00bb en el detalle de \u00f3rdenes')}));
+    else if(o.estado==='F'&&v.tipo==='paso')al.push(Object.assign({},base,{sev:'dn',msg:'&#128203; Figura Finalizada pero el m\u00f3vil pas\u00f3 por la puerta a las '+v.hora+' sin detenerse'}));
+  });
+  // Paradas con cliente que no figura en la planilla de ese móvil/día
+  var porDia={};m.ordenes.forEach(function(o){(porDia[o.fec]=porDia[o.fec]||{})[o.nro]=true;});
+  m.paradas.forEach(function(p){
+    if(dia!=='todos'&&p.fec!==dia)return;
+    var c=normCli(p.cli);
+    if(!c||!porDia[p.fec]||porDia[p.fec][c]||esBase(p))return;
+    al.push({lv:'or',sev:'wn',f:p.fec,h:p.hora,loc:p.loc,msg:'&#128203; Visit\u00f3 al cliente '+p.cli+', que no figura en la planilla de este m\u00f3vil ese d\u00eda'});
+  });
+  return al;
+}
+
+/* --- Panel del móvil --- */
+function toggleOrdDetalle(){ORD_ABIERTO=!ORD_ABIERTO;updOrdenes(DATA[aM]);}
+function updOrdenes(m){
+  var w=document.getElementById('ord-wrap');if(!w)return;
+  if(esSinDom(m)){w.innerHTML='';return;}
+  if(!m.ordenes||!m.ordenes.length){
+    w.innerHTML=SUPERVISOR_MODE?'':'<div class="ord-empty">&#128203; Carg\u00e1 las \u00f3rdenes asignadas de la planilla para comparar lo que ten\u00eda que hacer con lo que recorri\u00f3. <button class="mfb" onclick="openOrdenesModal()">Cargar \u00f3rdenes</button></div>';
+    return;
+  }
+  var r=resumenOrdenes(m,aD);
+  if(!r.tot){w.innerHTML='<div class="ord-empty">&#128203; No hay \u00f3rdenes asignadas cargadas para este d\u00eda.</div>';return;}
+  var chips='<span><b>'+r.tot+'</b> asignadas</span><span style="color:var(--ok)"><b>'+r.vis+'</b> visitadas</span>'+
+    (r.fNo?'<span style="color:var(--dn)"><b>'+r.fNo+'</b> finalizadas sin visita</span>':'')+
+    (r.corta?'<span style="color:var(--wn)"><b>'+r.corta+'</b> detenciones cortas</span>':'')+
+    (r.sinUbic?'<span style="color:var(--tx3)"><b>'+r.sinUbic+'</b> sin ubicaci\u00f3n</span>':'');
+  var head='<div class="th" style="cursor:pointer" onclick="toggleOrdDetalle()"><div class="tt">&#128203; \u00d3rdenes asignadas vs. recorrido</div>'+
+    '<div style="display:flex;gap:8px;align-items:center">'+(SUPERVISOR_MODE?'':'<button class="mfb" onclick="event.stopPropagation();openOrdenesModal()">Actualizar</button>')+
+    '<span class="al-chev">'+(ORD_ABIERTO?'Ocultar &#9652;':'Ver detalle &#9662;')+'</span></div></div>';
+  var body='<div class="ord-chips">'+chips+'</div>';
+  if(ORD_ABIERTO){
+    var orden={'F':0,'P':1,'C':2,'':3};
+    var filas=r.os.slice().sort(function(a,b){var fa=fKey(a.fec),fb=fKey(b.fec);if(fa!==fb)return fa<fb?-1:1;return 0;}).map(function(o){
+      var est=o.estado==='F'?'<span class="bd bdo">Finalizada</span>':o.estado==='C'?'<span class="bd bdn2">Cancelada</span>':o.estado==='P'?'<span class="bd bdw">Pendiente</span>':'<span style="color:var(--tx3)">\u2014</span>';
+      var col=colorOrden(o),v=o.vis||{};
+      var acc='';
+      if(!SUPERVISOR_MODE&&v.tipo==='corta'&&o.lat)acc='<button class="mfb" onclick="event.stopPropagation();abrirNuevaParada(\''+o.fec+'\',\''+v.hora+'\','+o.lat+','+o.lon+','+v.min+',\''+o.nro+'\')">&#10133; Parada</button>';
+      if(!SUPERVISOR_MODE&&v.tipo==='sinUbic')acc='<span onclick="event.stopPropagation()" style="display:inline-flex;gap:4px"><input id="ubic-'+o.nro+'" placeholder="lat, lon" style="width:150px;padding:3px 6px;border:1px solid var(--bd);border-radius:5px;font-size:11px;background:var(--sf);color:var(--tx)"><button class="mfb" onclick="guardarUbicManual(\''+o.nro+'\')">OK</button></span>';
+      return '<tr onclick="verOrden(\''+o.fec+'\',\''+o.nro+'\')" style="cursor:pointer">'+
+        (aD==='todos'?'<td style="white-space:nowrap;color:var(--tx2)">'+o.fec+'</td>':'')+
+        '<td style="font-family:var(--fm);font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+col+';margin-right:6px"></span>'+o.nro+(o.nombre?'<div style="font-family:var(--fn);color:var(--tx3);font-size:10px">'+o.nombre+'</div>':'')+'</td>'+
+        '<td style="font-size:11px;color:var(--tx2)">'+(o.tipo||'')+'</td><td>'+est+'</td>'+
+        '<td style="font-size:12px;color:'+(col==='#9c9890'?'var(--tx2)':col)+'">'+textoVis(o,false)+
+          (o.coment&&o.coment.length?'<div class="ord-com">'+o.coment.map(function(c){return '&#128172; '+escH(c.texto)+' <span>('+escH(c.autor.split(' ')[0])+' '+c.fecha+')</span>';}).join('<br>')+
+            (SUPERVISOR_MODE?'<div><span class="bd bdn2">'+(CLASES[claseOrden(o)]||'')+'</span></div>':
+            '<div onclick="event.stopPropagation()"><select class="ord-cls" onchange="setClaseOrden(\''+o.fec+'\',\''+o.nro+'\',this.value)">'+
+              Object.keys(CLASES).map(function(k){return '<option value="'+k+'"'+(claseOrden(o)===k?' selected':'')+'>'+CLASES[k]+(o.clase===k&&!o.claseManual?' (auto)':'')+'</option>';}).join('')+'</select></div>')+'</div>':'')+
+        (function(){
+          if(o.coment&&o.coment.length)return '';
+          var esR=claseOrden(o)==='remoto';
+          if(!(o.estado==='F'&&(v.tipo==='no'||v.tipo==='paso'))&&!esR)return '';
+          if(SUPERVISOR_MODE)return esR?'<div class="ord-com"><span class="bd bdn2">&#128222; Resuelto a distancia</span></div>':'';
+          return '<div class="ord-com" onclick="event.stopPropagation()"><button class="mfb" onclick="setClaseOrden(\''+o.fec+'\',\''+o.nro+'\','+(esR?"''":"'remoto'")+')">'+(esR?'&#128222; Resuelto a distancia \u2014 deshacer':'&#128222; Marcar resuelto a distancia')+'</button></div>';
+        })()+
+        '</td><td>'+acc+'</td></tr>';
+    }).join('');
+    body+='<div class="tw" style="max-height:360px;overflow-y:auto"><table><thead><tr>'+(aD==='todos'?'<th>D\u00eda</th>':'')+'<th>Cliente</th><th>Tarea</th><th>Planilla</th><th>Recorrido GPS</th><th></th></tr></thead><tbody>'+filas+'</tbody></table></div>';
+  }
+  w.innerHTML='<div class="ts ord-card">'+head+body+'</div>';
+}
+function verOrden(fec,nro){
+  if(aD!==fec)selDia(fec);
+  ORD_SEL={fec:fec,nro:nro};
+  var m=DATA[aM];rMapa(m,MAPA_FILTRO_ACTUAL);renderPlayerControls(m);
+  var el=document.getElementById('mmap');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function dibujarOrdenesMapa(m,bds){
+  if(!m.ordenes||!m.ordenes.length||esSinDom(m)||!LM2)return;
+  var foco=null;
+  m.ordenes.forEach(function(o){
+    if(!o.lat||!o.lon||(aD!=='todos'&&o.fec!==aD))return;
+    var col=colorOrden(o),sel=ORD_SEL&&ORD_SEL.fec===o.fec&&ORD_SEL.nro===o.nro;
+    var sz=sel?22:16;
+    var ic=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:4px;background:'+col+';border:2px solid #fff;'+(sel?'outline:3px solid #facc15;':'')+'box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:700;font-family:sans-serif">'+(o.estado||'?')+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+    var mk=L.marker([o.lat,o.lon],{icon:ic,zIndexOffset:sel?2600:800}).addTo(LM2);
+    mk.bindTooltip('<div style="font-size:11px;line-height:1.5"><b>Orden asignada '+o.nro+'</b>'+(o.tipo?' \u00b7 '+o.tipo:'')+'<br>'+(o.nombre?o.nombre+'<br>':'')+(o.dir?o.dir+'<br>':'')+
+      'Planilla: '+({F:'Finalizada',C:'Cancelada',P:'Pendiente'}[o.estado]||'sin estado')+' \u00b7 '+o.fec+'<br>'+textoVis(o,true)+comentHTML(o)+(o.fuente==='parada'?'<br><i>Ubicaci\u00f3n tomada de la parada</i>':o.fuente==='gps'?'<br><i>Ubicaci\u00f3n corregida con el GPS</i>':'')+'</div>',{direction:'top',offset:[0,-sz/2-2]});
+    bds.push([o.lat,o.lon]);
+    if(sel)foco=[mk,o];
+  });
+  if(foco){setTimeout(function(){try{LM2.setView([foco[1].lat,foco[1].lon],17);foco[0].openTooltip();}catch(e){}},30);}
+}
+
+/* --- Importación --- */
+function openOrdenesModal(){
+  planCfgAForm();
+  document.getElementById('ord-log').innerHTML=ordResumenHTML();
+  document.getElementById('ordenesModal').classList.add('on');
+}
+function closeOrdenesModal(){document.getElementById('ordenesModal').classList.remove('on');}
+function ordLog(h){var el=document.getElementById('ord-log');if(el)el.innerHTML=h+'<div style="margin-top:.6rem">'+ordResumenHTML()+'</div>';}
+function ordResumenHTML(){
+  var tot=0,sin=0,por=[];
+  DATA.forEach(function(m){var os=m.ordenes||[];if(!os.length)return;tot+=os.length;var s=os.filter(function(o){return !o.lat}).length;sin+=s;por.push(m.label+': '+os.length+(s?' ('+s+' sin ubicaci\u00f3n)':''));});
+  if(!tot)return '<span style="color:var(--tx3)">Todav\u00eda no hay \u00f3rdenes cargadas en este reporte.</span>';
+  return '<b>'+tot+'</b> \u00f3rdenes cargadas \u2014 '+por.join(' \u00b7 ')+(sin?'<br><span style="color:var(--wn)">'+sin+' sin ubicaci\u00f3n: carg\u00e1 el CSV del extractor, busc\u00e1 en NAP o pegalas a mano en el detalle del m\u00f3vil.</span>':'');
+}
+function finImportOrdenes(){
+  resolverCoordsOrdenes();
+  var n=autoAsignarParadas();
+  completarDesdePlanilla();
+  aplicarConfComentarios();
+  calcAl();render();guardarBorradorAuto();
+  return n;
+}
+function cargarPlanillaOrdenes(){
+  var txt=document.getElementById('ord-paste').value;
+  var lst=parsePlanilla(txt);
+  if(!lst.length){ordLog('<span style="color:var(--dn)">No encontr\u00e9 \u00f3rdenes en lo que pegaste. Copi\u00e1 de la planilla desde la fila de la fecha (ej: "martes, 22 de septiembre de 2026") hasta la fila de "Total tareas", incluyendo las filas TAREAS y M\u00d3VIL.</span>');return;}
+  var agreg=0,sinMovil={},fuera=0,pares={};
+  lst.forEach(function(x){
+    var m=movilPorNumero(x.movil,x.emp);
+    if(!m){sinMovil[x.movil+(x.emp?' '+x.emp:'')]=1;return;}
+    if(!enRango(m,x.fec)){fuera++;return;}
+    var fec=diaDeMovil(m,x.fec),k=m.label+'|'+fec;
+    m.ordenes=m.ordenes||[];
+    if(!pares[k]){pares[k]=true;m.ordenes=m.ordenes.filter(function(o){return o.fec!==fec});} // la planilla manda: reemplaza lo de ese móvil y día
+    if(m.ordenes.some(function(o){return o.nro===x.nro&&o.fec===fec}))return;
+    m.ordenes.push({nro:x.nro,fec:fec,tipo:x.tipo,estado:x.estado});agreg++;
+  });
+  var n=finImportOrdenes();
+  var sm=Object.keys(sinMovil);
+  ordLog('<span style="color:var(--ok)">\u2713 '+agreg+' \u00f3rdenes cargadas de la planilla.</span>'+
+    (n?'<br>'+n+' parada(s) sin cliente quedaron asignadas a la orden que estaba en esa puerta.':'')+
+    (sm.length?'<br><span style="color:var(--tx3)">M\u00f3viles de la planilla que no est\u00e1n en este reporte (se ignoraron): '+sm.join(', ')+'</span>':'')+
+    (fuera?'<br><span style="color:var(--tx3)">'+fuera+' \u00f3rdenes de d\u00edas fuera del per\u00edodo del reporte (se ignoraron).</span>':''));
+  document.getElementById('ord-paste').value='';
+}
+function importarCSVClientes(file){
+  if(!file)return;
+  var rd=new FileReader();
+  rd.onload=function(e){
+    try{
+      var rows=parseCSVCruce(e.target.result);
+      var hdr=(rows[0]||[]).map(function(h){return sinAcentos(h).trim().toLowerCase();});
+      function col(n){for(var i=0;i<n.length;i++){var k=hdr.indexOf(n[i]);if(k>=0)return k;}return -1;}
+      var C={nro:col(['cliente nro','cliente','nro']),nom:col(['apellido y nombre','nombre']),dir:col(['direccion']),
+        lat:col(['latitud cliente','latitud','lat']),lon:col(['longitud cliente','longitud','lon','lng']),
+        mov:col(['movil gps asignado','movil']),fec:col(['fecha gps asignada','fecha']),est:col(['estado planilla','estado']),tar:col(['tarea','tipo'])};
+      if(C.nro<0||C.lat<0||C.lon<0){ordLog('<span style="color:var(--dn)">El CSV no tiene las columnas esperadas (Cliente Nro, Latitud Cliente, Longitud Cliente). Us\u00e1 el que exporta el extractor de SIGA.</span>');return;}
+      var ubic=0,nuevas=0;
+      for(var i=1;i<rows.length;i++){
+        var r=rows[i],nro=normCli(r[C.nro]);if(!nro)continue;
+        var la=parseFloat(String(r[C.lat]||'').replace(',','.')),lo=parseFloat(String(r[C.lon]||'').replace(',','.'));
+        var prev=CLI_COORDS[nro]||{};
+        if(!isNaN(la)&&!isNaN(lo)&&la!==0){CLI_COORDS[nro]={lat:la,lon:lo,nombre:C.nom>=0?r[C.nom]:prev.nombre,dir:C.dir>=0?r[C.dir]:prev.dir,fuente:'siga'};ubic++;}
+        if(C.mov>=0&&C.fec>=0&&r[C.mov]&&r[C.fec]){
+          var mv=String(r[C.mov]).match(/\d+/),m=mv?movilPorNumero(parseInt(mv[0],10),''):null;
+          if(m&&enRango(m,r[C.fec])){
+            var fec=diaDeMovil(m,r[C.fec]);m.ordenes=m.ordenes||[];
+            var o=m.ordenes.find(function(o){return o.nro===nro&&o.fec===fec});
+            var est=C.est>=0?String(r[C.est]||'').toUpperCase().charAt(0):'';
+            if(!o){m.ordenes.push({nro:nro,fec:fec,tipo:C.tar>=0?r[C.tar]:'',estado:/[FCP]/.test(est)?est:''});nuevas++;}
+            else if(!o.estado&&/[FCP]/.test(est))o.estado=est;
+          }
+        }
+      }
+      guardarCliCoords();
+      var n=finImportOrdenes();
+      ordLog('<span style="color:var(--ok)">\u2713 '+ubic+' ubicaciones de clientes cargadas del CSV'+(nuevas?' y '+nuevas+' \u00f3rdenes nuevas':'')+'.</span>'+(n?'<br>'+n+' parada(s) quedaron asignadas por cercan\u00eda.':''));
+    }catch(err){ordLog('<span style="color:var(--dn)">Error leyendo el CSV: '+err.message+'</span>');}
+  };
+  rd.readAsText(file,'UTF-8');
+}
+async function buscarFaltantesNAP(){
+  if(!napGet('url')||!napGet('pass')){ordLog('<span style="color:var(--wn)">Primero configur\u00e1 la conexi\u00f3n con el bot\u00f3n &#128273; NAP.</span>');return;}
+  var faltan=[];
+  DATA.forEach(function(m){(m.ordenes||[]).forEach(function(o){if(!o.lat&&faltan.indexOf(o.nro)<0&&!(CLI_COORDS[o.nro]&&CLI_COORDS[o.nro].sinNap))faltan.push(o.nro);});});
+  if(!faltan.length){ordLog('No hay clientes sin ubicaci\u00f3n para buscar.');return;}
+  var ok=0,no=0;
+  for(var i=0;i<faltan.length;i++){
+    var nro=faltan[i];
+    ordLog('Buscando en NAP '+(i+1)+' de '+faltan.length+' (cliente '+nro+')...');
+    try{
+      var r=await fetch(napGet('url')+'?pass='+encodeURIComponent(napGet('pass'))+'&accion=cliente&nro='+encodeURIComponent(nro));
+      var j=await r.json();
+      var c=j&&j.ok&&j.cliente;
+      if(c&&c.lat!=null&&c.lng!=null&&!isNaN(parseFloat(c.lat))){CLI_COORDS[nro]={lat:parseFloat(c.lat),lon:parseFloat(c.lng),nombre:c.nombre||'',dir:c.direccion||'',fuente:'nap'};ok++;}
+      else{CLI_COORDS[nro]=Object.assign(CLI_COORDS[nro]||{},{sinNap:true,nombre:(c&&c.nombre)||'',dir:(c&&c.direccion)||''});no++;}
+    }catch(e){no++;}
+    await esperar(250);
+  }
+  guardarCliCoords();
+  var n=finImportOrdenes();
+  ordLog('<span style="color:var(--ok)">\u2713 NAP: '+ok+' encontrados'+(no?', '+no+' sin ubicaci\u00f3n en NAP':'')+'.</span>'+(n?'<br>'+n+' parada(s) quedaron asignadas por cercan\u00eda.':''));
+}
+function guardarUbicManual(nro){
+  var el=document.getElementById('ubic-'+nro);
+  var cc=parseCoords(el?el.value:'');
+  if(cc[0]==null){toast('\u26a0 Peg\u00e1 las coordenadas como "lat, lon"');return;}
+  CLI_COORDS[nro]=Object.assign(CLI_COORDS[nro]||{},{lat:cc[0],lon:cc[1],fuente:'manual'});
+  delete CLI_COORDS[nro].sinNap;
+  guardarCliCoords();
+  var n=finImportOrdenes();
+  toast('\u2713 Ubicaci\u00f3n guardada para el cliente '+nro+(n?' \u2014 se asign\u00f3 a una parada':''));
+}
+
+/* === PLANILLA AUTOMÁTICA (lector Apps Script): órdenes, comentarios, novedades, S/Móvil === */
+var PLAN_KEY='ctc_planilla_cfg',SM_KEY='ctc_sinmovil_asig';
+var PLAN_CFG=(function(){try{return JSON.parse(localStorage.getItem(PLAN_KEY)||'{}');}catch(e){return{};}})();
+var SM_ASIG=(function(){try{return JSON.parse(localStorage.getItem(SM_KEY)||'{}');}catch(e){return{};}})();
+var ULTIMA_PLAN=null,ULTIMO_PEND=[];
+var TORRES_NOMBRE={HECTOR:'H\u00e9ctor Collado',NICOLAS:'Nicol\u00e1s Buffa',FABRICIO:'Fabricio Tapia',CESAR:'C\u00e9sar Barrera'};
+function torreNombre(t){var k=sinAcentos(t).trim().toUpperCase();return TORRES_NOMBRE[k]||(t.charAt(0).toUpperCase()+t.slice(1).toLowerCase());}
+function guardarPlanCfg(){try{localStorage.setItem(PLAN_KEY,JSON.stringify(PLAN_CFG));}catch(e){}}
+function guardarSmAsig(){try{localStorage.setItem(SM_KEY,JSON.stringify(SM_ASIG));}catch(e){}}
+function idDeLink(s){var m=String(s||'').match(/\/d\/([a-zA-Z0-9_-]{20,})/);if(m)return m[1];s=String(s||'').trim();return /^[a-zA-Z0-9_-]{20,}$/.test(s)?s:'';}
+
+/* --- Clasificación de comentarios --- */
+var RE_FUE=/visit|nadie|no se encuentra|no contesta|no atiende|no sale|ausente|no estaba|nunca se encuentra|timbre|canerias?|obstruid|sin senal|no tiene senal|nap llena|nap sin|poste|se estuvo/;
+var RE_NOFUE=/reagend|reprogram|pasad[oa] para|para manana|para el dia|falta de tiempo|no se llego|rechaz|baja|no vive|cambio de domicilio|cancela|no tiene llave|avisar|llamar|se pasa a call|no quiere|no esta en su casa/;
+var RE_AUSENTE=/nadie|no se encuentra|no contesta|no atiende|no sale|ausente|no estaba|nunca se encuentra|timbre/;
+var CLASES={fue:'Fue y no pudo',noFue:'No fue (justificado)',remoto:'Resuelto a distancia',acl:'Aclaraci\u00f3n'};
+var RE_REMOTO=/telefon|remot|whatsapp|por whats|via whats|por llamada|guiad|a distancia|sin visita|desde (la )?central|desde (la )?oficina|se soluciono (por|desde|sin)|se resolvio (por|desde|sin)|volvio el servicio|ya tiene servicio|ya funciona/;
+function clasificarComentario(t){
+  var s=sinAcentos(t).toLowerCase();
+  if(RE_REMOTO.test(s)&&!/visit/.test(s))return 'remoto';
+  if(RE_FUE.test(s))return 'fue';
+  if(RE_NOFUE.test(s))return 'noFue';
+  return 'acl';
+}
+function claseOrden(o){return o.claseManual||o.clase||'';}
+function textoComent(o){return (o.coment||[]).map(function(c){return c.texto;}).join(' \u00b7 ');}
+function corto(t,n){t=String(t||'');n=n||80;return t.length>n?t.slice(0,n-1)+'\u2026':t;}
+function comentHTML(o){
+  if(!o.coment||!o.coment.length)return '';
+  return o.coment.map(function(c){return '<br>&#128172; '+escH(c.texto)+' <span style="color:#9c9890">('+escH(c.autor.split(' ')[0])+' '+c.fecha+')</span>';}).join('');
+}
+function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* --- Traer del lector --- */
+function planCfgAForm(){
+  document.getElementById('plan-url').value=PLAN_CFG.url||'';
+  document.getElementById('plan-clave').value=PLAN_CFG.clave||'';
+  document.getElementById('plan-links').value=(PLAN_CFG.links||[]).join('\n');
+}
+function rangoReporte(){
+  var a=null,b=null;
+  DATA.forEach(function(m){var x=fKey(m.desde),y=fKey(m.hasta);if(/^\d{4}-/.test(x)&&(!a||x<a))a=x;if(/^\d{4}-/.test(y)&&(!b||y>b))b=y;});
+  if(!a||!b){var ks=[];DATA.forEach(function(m){diasMovil(m).forEach(function(d){ks.push(fKey(d));});});ks.sort();a=ks[0];b=ks[ks.length-1];}
+  return{desde:a,hasta:b};
+}
+async function traerDePlanilla(){
+  PLAN_CFG.url=document.getElementById('plan-url').value.trim();
+  PLAN_CFG.clave=document.getElementById('plan-clave').value.trim();
+  PLAN_CFG.links=document.getElementById('plan-links').value.split('\n').map(function(s){return s.trim();}).filter(String);
+  guardarPlanCfg();
+  if(!DATA.length){ordLog('<span style="color:var(--wn)">Primero carg\u00e1 el reporte (Excel del GPS): las \u00f3rdenes se traen para esos m\u00f3viles y fechas.</span>');return;}
+  if(!/^https:\/\/script\.google\.com\//.test(PLAN_CFG.url)){ordLog('<span style="color:var(--dn)">Peg\u00e1 la URL del lector: la que termina en /exec.</span>');return;}
+  var ids=PLAN_CFG.links.map(idDeLink).filter(String);
+  if(!ids.length){ordLog('<span style="color:var(--dn)">Peg\u00e1 el link de la planilla del mes.</span>');return;}
+  var r=rangoReporte();
+  ordLog('&#8987; Leyendo la planilla del '+r.desde.split('-').reverse().join('/')+' al '+r.hasta.split('-').reverse().join('/')+'... (puede tardar unos segundos)');
+  try{
+    var res=await fetch(PLAN_CFG.url+'?'+new URLSearchParams({clave:PLAN_CFG.clave,accion:'leer',ids:ids.join(','),desde:r.desde,hasta:r.hasta}));
+    var j=await res.json();
+    if(!j.ok){ordLog('<span style="color:var(--dn)">El lector respondi\u00f3: '+escH(j.error||'error')+'</span>');return;}
+    ULTIMA_PLAN=j;
+    aplicarPlanilla(j,true);
+  }catch(e){
+    ordLog('<span style="color:var(--dn)">No se pudo conectar con el lector ('+escH(e.message)+'). Revis\u00e1 la URL y que est\u00e9 implementado como aplicaci\u00f3n web con acceso "Cualquier usuario".</span>');
+  }
+}
+
+/* --- Volcar al reporte --- */
+function aplicarPlanilla(j,conLog){
+  var prevManual={};
+  DATA.forEach(function(m){(m.ordenes||[]).forEach(function(o){if(o.claseManual)prevManual[m.label+'|'+o.fec+'|'+o.nro]=o.claseManual;});});
+  var pares={},pend=[],st={dias:0,ordenes:0,coment:0,otros:{}};
+  j.dias.forEach(function(d){
+    var m=null,key=d.torre+'|'+d.fecha+'|'+d.col;
+    if(d.movilNum!=null)m=movilPorNumero(d.movilNum,d.emp);
+    else{
+      var a=SM_ASIG[key];
+      if(a==='__ign')return;
+      m=a?DATA.find(function(x){return x.label===a;}):null;
+      if(!m){if(DATA.some(function(x){return enRango(x,d.fecha);}))pend.push({key:key,d:d});return;}
+    }
+    if(!m){st.otros[d.movil]=1;return;}
+    if(!enRango(m,d.fecha))return;
+    var fec=diaDeMovil(m,d.fecha),pk=m.label+'|'+fec;
+    m.ordenes=m.ordenes||[];m.diaInfo=m.diaInfo||{};
+    if(!pares[pk]){
+      pares[pk]=true;
+      m.ordenes=m.ordenes.filter(function(o){return o.fec!==fec;});
+      m.diaInfo[fec]={torres:[],tarea:[],observacion:[],novedades:[],tecnicos:[]};
+    }
+    var di=m.diaInfo[fec],tn=torreNombre(d.torre);
+    if(di.torres.indexOf(tn)<0)di.torres.push(tn);
+    [['tarea',d.tarea],['observacion',d.observacion],['novedades',d.novedades],['tecnicos',d.tecnicos]].forEach(function(x){if(x[1]&&di[x[0]].indexOf(x[1])<0)di[x[0]].push(x[1]);});
+    d.ordenes.forEach(function(x){
+      if(m.ordenes.some(function(o){return o.nro===x.nro&&o.fec===fec;}))return;
+      var com=(x.comentarios||[]);
+      m.ordenes.push({nro:x.nro,fec:fec,tipo:d.tarea,estado:x.estado,torre:tn,coment:com,
+        clase:com.length?clasificarComentario(com.map(function(c){return c.texto;}).join(' ')):'',
+        claseManual:prevManual[m.label+'|'+fec+'|'+x.nro]});
+      st.ordenes++;st.coment+=com.length;
+    });
+    st.dias++;
+  });
+  // Torre de control y "Dedicado a" del móvil, según la planilla
+  DATA.forEach(function(m){
+    if(!m.diaInfo)return;
+    var ts={},obs={};
+    Object.keys(m.diaInfo).forEach(function(f){m.diaInfo[f].torres.forEach(function(t){ts[t]=1;});m.diaInfo[f].observacion.forEach(function(o){obs[o]=(obs[o]||0)+1;});});
+    var tl=Object.keys(ts);if(tl.length)m.torre=tl.join(' / ');
+    var ob=Object.keys(obs).sort(function(a,b){return obs[b]-obs[a];});
+    if(ob.length&&(!m.dedicado||m.dedicadoPlanilla)){m.dedicado=ob.join(' / ');m.dedicadoPlanilla=true;}
+  });
+  ULTIMO_PEND=pend;
+  var n=finImportOrdenes();
+  if(!conLog)return;
+  var otros=Object.keys(st.otros);
+  ordLog('<span style="color:var(--ok)">\u2713 '+st.ordenes+' \u00f3rdenes de '+st.dias+' m\u00f3vil/d\u00eda \u00b7 '+st.coment+' comentarios'+(j.comentariosSinUbicar?' ('+j.comentariosSinUbicar+' de clientes que no est\u00e1n en la planilla)':'')+'.</span>'+
+    (n?'<br>'+n+' parada(s) sin cliente quedaron asignadas por cercan\u00eda.':'')+
+    (otros.length?'<br><span style="color:var(--tx3)">M\u00f3viles de la planilla que no est\u00e1n en este reporte: '+escH(otros.join(', '))+'</span>':'')+
+    htmlSinMovil());
+}
+function htmlSinMovil(){
+  if(!ULTIMO_PEND.length)return '';
+  var opts='<option value="">\u00bfA qu\u00e9 m\u00f3vil pertenece?</option>'+DATA.map(function(m){return '<option value="'+escA(m.label)+'">'+escH(m.label)+'</option>';}).join('')+'<option value="__ign">No es de este reporte (ignorar)</option>';
+  return '<div class="sm-box"><b>&#9888;&#65039; '+ULTIMO_PEND.length+' columna(s) anotadas como "S/M\u00f3vil"</b><br><span style="color:var(--tx2)">Eleg\u00ed a qu\u00e9 m\u00f3vil corresponde cada una. Queda guardado si volv\u00e9s a traer la planilla.</span>'+
+    ULTIMO_PEND.map(function(p,i){
+      return '<div class="sm-row"><div><b>'+escH(torreNombre(p.d.torre))+'</b> \u00b7 '+p.d.fecha+(p.d.tarea?' \u00b7 '+escH(p.d.tarea):'')+'<br><span style="color:var(--tx3);font-family:var(--fm);font-size:11px">'+p.d.ordenes.length+' \u00f3rdenes: '+p.d.ordenes.slice(0,6).map(function(o){return o.nro;}).join(', ')+(p.d.ordenes.length>6?'\u2026':'')+'</span></div>'+
+        '<select onchange="asignarSinMovil('+i+',this.value)">'+opts+'</select></div>';
+    }).join('')+'</div>';
+}
+function asignarSinMovil(i,val){
+  var p=ULTIMO_PEND[i];if(!p||!val)return;
+  SM_ASIG[p.key]=val;guardarSmAsig();
+  if(ULTIMA_PLAN)aplicarPlanilla(ULTIMA_PLAN,true);
+  toast(val==='__ign'?'Columna ignorada':'\u2713 \u00d3rdenes asignadas a '+val);
+}
+
+/* --- Conformidad y comentario en las paradas --- */
+function aplicarConfComentarios(){
+  DATA.forEach(function(m){(m.ordenes||[]).forEach(function(o){
+    if(!o.coment||!o.coment.length)return;
+    var txt=textoComent(o),cl=claseOrden(o);
+    m.paradas.forEach(function(p){
+      if(p.fec!==o.fec||normCli(p.cli)!==o.nro)return;
+      p.comentario=txt;
+      var conf='';
+      if(cl==='fue')conf=RE_AUSENTE.test(sinAcentos(txt).toLowerCase())?'1\u00b0 Visita':'Orden no realizada';
+      else if(cl==='noFue')conf='Orden no realizada';
+      if(o.estado==='F')conf='';
+      if(conf&&(!p.conf||p.confAuto)){p.conf=conf;p.confAuto=true;}
+    });
+  });});
+}
+function setClaseOrden(fec,nro,v){
+  var m=DATA[aM];var o=(m.ordenes||[]).find(function(x){return x.fec===fec&&x.nro===nro;});if(!o)return;
+  o.claseManual=v||undefined;
+  aplicarConfComentarios();calcAl();
+  updAl(m);updOrdenes(m);updTbl(m);updKpis(m);renderComparativa();
+  guardarBorradorAuto();
+}
+
+/* --- Novedades de la planilla (arriba de las alertas) --- */
+function htmlNovedades(m){
+  if(!m.diaInfo)return '';
+  var dias=Object.keys(m.diaInfo).filter(function(f){return (aD==='todos'||f===aD)&&m.diaInfo[f].novedades&&m.diaInfo[f].novedades.length;})
+    .sort(function(a,b){return fKey(a)<fKey(b)?-1:1;});
+  if(!dias.length)return '';
+  return '<div class="nov-box"><b>&#128221; Novedades de la planilla</b>'+dias.map(function(f){return '<br><span style="color:var(--tx3)">'+f+':</span> '+escH(m.diaInfo[f].novedades.join(' \u00b7 '));}).join('')+'</div>';
+}
+
+setTimeout(cargarEstacionesOSM,1500);
 /* === HELPERS === */
 function flat(fn){return DATA.reduce(function(a,m){return a.concat(fn(m))},[])}
 function sv2(v){return v===null||v===undefined?'':(String(v)||''). trim()}
@@ -2893,7 +3769,7 @@ function resetDash(){dCharts();DATA=[];aM=0;aD='todos';document.getElementById('
 /*__PRELOAD__*/
 window.addEventListener('load',async function(){
   if(SUPERVISOR_MODE){
-    ['btn-tecnico','btn-importar-cruce','btn-importar-rutas','btn-exportar-excel','btn-gh-config','btn-nap-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
+    ['btn-tecnico','btn-importar-cruce','btn-ordenes','btn-importar-rutas','btn-exportar-excel','btn-gh-config','btn-nap-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     var buscarOtro=document.getElementById('btn-buscar-otro');if(buscarOtro)buscarOtro.style.display='';
