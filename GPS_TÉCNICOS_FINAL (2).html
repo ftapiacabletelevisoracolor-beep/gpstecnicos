@@ -207,7 +207,7 @@ tbody tr:last-child td{border-bottom:none}
 .al-rojo{font-size:10px;font-weight:700;color:var(--dn);background:rgba(220,38,38,.1);padding:1px 6px;border-radius:4px;margin-left:4px}
 .al-grp-body{padding-left:10px;margin-bottom:8px}
 .ai.or{background:rgba(8,145,178,.09);border-color:#0891b2}.ai.or.dvh{background:rgba(220,38,38,.09);border-color:var(--dn)}
-.al-grp.g-or{border-left-color:#0891b2}
+.al-grp.g-or{border-left-color:#0891b2}.al-grp.g-spd{border-left-color:#e11d48}
 .ord-empty{background:var(--sf);border:1px dashed var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12.5px;color:var(--tx2);margin-bottom:1.25rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .ord-chips{display:flex;flex-wrap:wrap;gap:16px;padding:10px 14px;font-size:12.5px;color:var(--tx2)}
 .ord-card .th{flex-wrap:wrap;gap:8px}
@@ -217,6 +217,7 @@ tbody tr:last-child td{border-bottom:none}
 .sm-row select{font-size:12px;padding:4px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf);color:var(--tx);max-width:190px}
 .ord-com{margin-top:4px;font-size:11.5px;color:var(--tx2);line-height:1.45}.ord-com span{color:var(--tx3)}
 .ord-cls{margin-top:4px;font-size:11px;padding:2px 5px;border:1px solid var(--bd);border-radius:5px;background:var(--sf);color:var(--tx)}
+.mf-sep{display:inline-block;width:1px;height:18px;background:var(--bd);margin:0 3px;vertical-align:middle}
 .sd-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px dashed var(--bd);background:transparent;color:var(--tx2);cursor:pointer;white-space:nowrap}
 .sd-btn:hover{border-color:var(--wn);color:var(--wn)}
 </style>
@@ -345,6 +346,7 @@ tbody tr:last-child td{border-bottom:none}
       <div class="modal-fl"><label>URL del lector (Apps Script, termina en /exec)</label><input id="plan-url" placeholder="https://script.google.com/macros/s/.../exec"></div>
       <div class="modal-fl"><label>Clave del lector</label><input id="plan-clave" type="password"></div>
       <div class="modal-fl"><label>Link de la planilla del mes (uno por l&#237;nea; si la semana cruza de mes, pon&#233; los dos)</label><textarea id="plan-links" class="obs-ta" style="min-height:52px;font-size:11px;font-family:var(--fm)" placeholder="https://docs.google.com/spreadsheets/d/.../edit"></textarea></div>
+      <div class="modal-fl"><label>Link de la base de clientes (NAP) &#8212; para traer la ubicaci&#243;n de cada cliente</label><input id="plan-clientes" placeholder="https://docs.google.com/spreadsheets/d/.../edit" style="font-family:var(--fm);font-size:11px"></div>
       <button class="ubtn" style="width:100%" onclick="traerDePlanilla()">Traer &#243;rdenes y comentarios del per&#237;odo del reporte</button>
     </div>
     <div style="font-size:11px;color:var(--tx3);margin-bottom:.5rem">O a mano, como antes:</div>
@@ -454,6 +456,13 @@ var SEL_PARADAS=new Set(); // índices (en m.paradas) de las paradas clickeadas 
 var TRAMO_SEL=-1; // índice del tramo (entre parada N y N+1) resaltado en el reproductor, -1 = ninguno
 var RUTA_DIA_LAYERS={}; // día -> polyline base dibujada por rMapa, para poder atenuarla al resaltar un tramo
 var MAPA_FILTRO_ACTUAL='t';
+var MAPA_CAPAS=(function(){try{return Object.assign({ordenes:true,ruta:true,paradas:true},JSON.parse(localStorage.getItem('ctc_mapa_capas')||'{}'));}catch(e){return{ordenes:true,ruta:true};}})();
+function toggleCapa(k,btn){
+  MAPA_CAPAS[k]=!MAPA_CAPAS[k];
+  try{localStorage.setItem('ctc_mapa_capas',JSON.stringify(MAPA_CAPAS));}catch(e){}
+  btn.classList.toggle('on',MAPA_CAPAS[k]);
+  rMapa(DATA[aM],MAPA_FILTRO_ACTUAL);renderPlayerControls(DATA[aM]);
+}
 var RUTAS_KEY='ctc_rutas_gps_v1';
 var RUTAS_GPS=(function(){try{return JSON.parse(localStorage.getItem(RUTAS_KEY)||'{}');}catch(e){return{};}})();
 var GC={};
@@ -1393,6 +1402,11 @@ function renderPanel(m){
         '<button class="mfb" onclick="fm(\'a\',this)">Alertas</button>'+
         '<button class="mfb" onclick="fm(\'d\',this)">&#127968; Dom.</button>'+
         '<button class="mfb" onclick="fm(\'g\',this)">&#9981; Estaciones</button>'+
+        '<span class="mf-sep"></span>'+
+        (m.ordenes&&m.ordenes.length?'<button class="mfb mtg'+(MAPA_CAPAS.ordenes?' on':'')+'" onclick="toggleCapa(\'ordenes\',this)" title="Mostrar u ocultar las \u00f3rdenes asignadas (cuadraditos)">&#128203; \u00d3rdenes</button>':'')+
+        '<button class="mfb mtg'+(MAPA_CAPAS.paradas?' on':'')+'" onclick="toggleCapa(\'paradas\',this)" title="Mostrar u ocultar las paradas del GPS (c\u00edrculos)">&#9679; Paradas</button>'+
+        '<button class="mfb mtg'+(MAPA_CAPAS.ruta?' on':'')+'" onclick="toggleCapa(\'ruta\',this)" title="Mostrar u ocultar la l\u00ednea del recorrido GPS">&#12336; Recorrido</button>'+
+        '<span class="mf-sep"></span>'+
         '<button class="mfb" onclick="toggleMapExp(this)">&#10021; Ampliar</button>'+
       '</div></div>'+
       '<div id="mmap"></div>'+
@@ -1726,7 +1740,7 @@ function getAl(m,dia){
     if(p.gA&&p.gA.multi)al.push({lv:'gs',f:p.fec,h:p.hora,loc:p.loc,msg:'&#9981; M\u00faltiple visita a estaci\u00f3n: '+p.gA.nombre+' \u2014 tiempo: '+fD(p.durMin)});
     var o=(p.obs||'').toUpperCase();
     if(o.indexOf('ALERTA')>=0||o.indexOf('NO PERTENECE')>=0||o.indexOf('NO REPROGRAMA')>=0)al.push({lv:'dn',f:p.fec,h:p.hora,loc:p.loc,msg:p.obs});
-    if(p.vmax>=100)al.push({lv:'spd',f:p.fec,h:p.hora,loc:p.loc,msg:'\uD83D\uDEA8 Exceso de velocidad: '+p.vmax+' km/h'});
+    if(p.vmax>=100)al.push({lv:'spd',v:p.vmax,f:p.fec,h:p.hora,loc:p.loc,msg:'\uD83D\uDEA8 Exceso de velocidad: '+p.vmax+' km/h'});
     else if(p.durMin>=VM&&!p.isP&&!p.isPn)al.push({lv:'wn',f:p.fec,h:p.hora,loc:p.loc,msg:'Parada de '+fD(p.durMin)+' \u2014 supera las 2 horas'});
   });
   // Desvío de recorrido respecto de las órdenes
@@ -1750,7 +1764,7 @@ function getAl(m,dia){
   al.sort(function(a,b){var fa=fechaOrd(a.f),fb=fechaOrd(b.f);if(fa!==fb)return fa<fb?-1:1;var ha=horaNorm(a.h),hb=horaNorm(b.h);return ha<hb?-1:ha>hb?1:0;});
   return al;
 }
-var GRUPOS_AL={or:'&#128203; \u00d3rdenes asignadas',dv:'&#129517; Desv\u00edos de recorrido',sl:'&#128034; Circulaci\u00f3n lenta',so:'&#9208;&#65039; Paradas largas sin orden'};
+var GRUPOS_AL={spd:'\uD83D\uDEA8 Exceso de velocidad',or:'&#128203; \u00d3rdenes asignadas',dv:'&#129517; Desv\u00edos de recorrido',sl:'&#128034; Circulaci\u00f3n lenta',so:'&#9208;&#65039; Paradas largas sin orden'};
 var AL_ABIERTOS={};
 function toggleGrupoAl(k){AL_ABIERTOS[k]=!AL_ABIERTOS[k];updAl(DATA[aM]);}
 function htmlAlerta(a){
@@ -1770,7 +1784,8 @@ function updAl(m){
     var rojos=items.filter(function(a){return a.sev==='dn'}).length;
     var ab=!!AL_ABIERTOS[k];
     html+='<div class="al-grp g-'+k+(ab?' on':'')+'" onclick="toggleGrupoAl(\''+k+'\')">'+
-      '<span>'+GRUPOS_AL[k]+' <b>'+items.length+'</b>'+(rojos?' <span class="al-rojo">'+rojos+' alto'+(rojos>1?'s':'')+'</span>':'')+'</span>'+
+      '<span>'+GRUPOS_AL[k]+' <b>'+items.length+'</b>'+(rojos?' <span class="al-rojo">'+rojos+' alto'+(rojos>1?'s':'')+'</span>':'')+
+        (k==='spd'?' <span class="al-rojo">m\u00e1x. '+Math.max.apply(null,items.map(function(a){return a.v||0;}))+' km/h</span>':'')+'</span>'+
       '<span class="al-chev">'+(ab?'Ocultar &#9652;':'Ver &#9662;')+'</span></div>'+
       (ab?'<div class="al-grp-body">'+items.map(htmlAlerta).join('')+'</div>':'');
   });
@@ -2012,7 +2027,7 @@ function rMapa(m,f){
       var real=rutaMovil&&rutaMovil[dia];
       var linea=null;
       if(real&&real.length>1){
-        linea=L.polyline(real,{color:m.color,weight:3,opacity:.75}).addTo(LM2);
+        linea=L.polyline(real,{color:m.color,weight:3,opacity:MAPA_CAPAS.ruta?.75:0,interactive:MAPA_CAPAS.ruta}).addTo(LM2);
         if(SUPERVISOR_MODE||real[0].length<3)linea.bindPopup('Recorrido real registrado por GPS \u2014 '+dia);
         else (function(diaL,realL){
           linea.on('click',function(e){
@@ -2031,10 +2046,10 @@ function rMapa(m,f){
           });
         }
       }else if(pts.length>1){
-        linea=L.polyline(pts.map(function(p){return[p.lat,p.lon];}),{color:m.color,weight:2.5,opacity:.4,dashArray:'6,4'}).addTo(LM2);
+        linea=L.polyline(pts.map(function(p){return[p.lat,p.lon];}),{color:m.color,weight:2.5,opacity:MAPA_CAPAS.ruta?.4:0,dashArray:'6,4',interactive:MAPA_CAPAS.ruta}).addTo(LM2);
         RUTA_DIA_LAYERS[dia]=linea;
       }
-      if(linea&&typeof L.polylineDecorator!=='undefined'){
+      if(linea&&MAPA_CAPAS.ruta&&typeof L.polylineDecorator!=='undefined'){
         L.polylineDecorator(linea,{patterns:[{offset:'8%',repeat:'9%',symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:m.color,weight:2,opacity:.9}})}]}).addTo(LM2);
       }
     });
@@ -2045,6 +2060,7 @@ function rMapa(m,f){
     var col=specialCol||getDayColor(p.fec,DATA[aM]);
     var pidx=m.paradas.indexOf(p);
     var sel=SEL_PARADAS.has(pidx);
+    if(!MAPA_CAPAS.paradas&&!sel)return;
     var sz=(p.dA||ia?22:il||p.gA?18:16)+(sel?6:0);
     var ring=sel?'outline:3px solid #facc15;outline-offset:2px;':'';
     var ic=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2.5px solid #fff;'+ring+'box-shadow:0 1px 5px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:'+(sz>16?'10':'9')+'px;font-weight:700;font-family:sans-serif">'+(p.n||'')+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
@@ -2083,7 +2099,7 @@ function rMapa(m,f){
   else if(bds.length)LM2.fitBounds(bds,{padding:[35,35]});
   dibujarDesvioSel(m);
 }
-function fm(f,btn){document.querySelectorAll('.mfb').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');MAPA_FILTRO_ACTUAL=f;rMapa(DATA[aM],f);renderPlayerControls(DATA[aM]);}
+function fm(f,btn){btn.parentNode.querySelectorAll('.mfb:not(.mtg)').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');MAPA_FILTRO_ACTUAL=f;rMapa(DATA[aM],f);renderPlayerControls(DATA[aM]);}
 
 function toggleMapExp(btn){
   var mc=btn.closest('.mc');
@@ -3213,7 +3229,7 @@ function autoAsignarParadas(){
         usadaO[x.o.nro]=true;usadaP.add(x.p);
         x.p.cli=x.o.nro;x.p.cliAuto=true;
         if(!x.p.trab){x.p.trab=x.o.estado==='F'?'SI':(x.o.estado?'NO':'');x.p.trabAuto=!!x.p.trab;}
-        if(!x.p.conf&&x.o.estado==='F'){x.p.conf='OK';x.p.obs=x.p.obs||'OK';}
+        if(!x.p.conf&&x.o.estado==='F'){x.p.conf='OK';x.p.confAuto=true;}
         n++;
       });
     });
@@ -3415,6 +3431,7 @@ function updOrdenes(m){
       var col=colorOrden(o),v=o.vis||{};
       var acc='';
       if(!SUPERVISOR_MODE&&v.tipo==='corta'&&o.lat)acc='<button class="mfb" onclick="event.stopPropagation();abrirNuevaParada(\''+o.fec+'\',\''+v.hora+'\','+o.lat+','+o.lon+','+v.min+',\''+o.nro+'\')">&#10133; Parada</button>';
+      if(!SUPERVISOR_MODE&&o.lat&&v.tipo!=='sinUbic'&&!acc)acc='<button class="mfb" title="Corregir la ubicaci\u00f3n de este cliente en el mapa" onclick="event.stopPropagation();modoCorregirUbic(\''+o.fec+'\',\''+o.nro+'\')">&#128205; Corregir</button>';
       if(!SUPERVISOR_MODE&&v.tipo==='sinUbic')acc='<span onclick="event.stopPropagation()" style="display:inline-flex;gap:4px"><input id="ubic-'+o.nro+'" placeholder="lat, lon" style="width:150px;padding:3px 6px;border:1px solid var(--bd);border-radius:5px;font-size:11px;background:var(--sf);color:var(--tx)"><button class="mfb" onclick="guardarUbicManual(\''+o.nro+'\')">OK</button></span>';
       return '<tr onclick="verOrden(\''+o.fec+'\',\''+o.nro+'\')" style="cursor:pointer">'+
         (aD==='todos'?'<td style="white-space:nowrap;color:var(--tx2)">'+o.fec+'</td>':'')+
@@ -3441,6 +3458,7 @@ function updOrdenes(m){
 function verOrden(fec,nro){
   if(aD!==fec)selDia(fec);
   ORD_SEL={fec:fec,nro:nro};
+  if(MAPA_FILTRO_ACTUAL!=='t'){var bt=document.querySelector('.mf .mfb:not(.mtg)');if(bt){fm('t',bt);}else MAPA_FILTRO_ACTUAL='t';}
   var m=DATA[aM];rMapa(m,MAPA_FILTRO_ACTUAL);renderPlayerControls(m);
   var el=document.getElementById('mmap');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -3450,15 +3468,50 @@ function dibujarOrdenesMapa(m,bds){
   m.ordenes.forEach(function(o){
     if(!o.lat||!o.lon||(aD!=='todos'&&o.fec!==aD))return;
     var col=colorOrden(o),sel=ORD_SEL&&ORD_SEL.fec===o.fec&&ORD_SEL.nro===o.nro;
+    if(!sel&&!MAPA_CAPAS.ordenes)return;
+    if(!sel&&aD==='todos'&&col!=='#dc2626')return; // vista de toda la semana: solo las que tienen problema
     var sz=sel?22:16;
     var ic=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:4px;background:'+col+';border:2px solid #fff;'+(sel?'outline:3px solid #facc15;':'')+'box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:700;font-family:sans-serif">'+(o.estado||'?')+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
-    var mk=L.marker([o.lat,o.lon],{icon:ic,zIndexOffset:sel?2600:800}).addTo(LM2);
+    var mk=L.marker([o.lat,o.lon],{icon:ic,zIndexOffset:sel?2600:800,draggable:!SUPERVISOR_MODE}).addTo(LM2);
+    if(!SUPERVISOR_MODE)mk.on('dragend',function(ev){
+      var ll=ev.target.getLatLng(),dm=Math.round(hav(o.lat,o.lon,ll.lat,ll.lng));
+      if(!confirm('\u00bfMover la ubicaci\u00f3n del cliente '+o.nro+(o.nombre?' ('+o.nombre+')':'')+' '+dm+' m, a este punto?\n\nQueda guardada para los pr\u00f3ximos reportes.')){ev.target.setLatLng([o.lat,o.lon]);return;}
+      corregirUbicacionCliente(o.nro,ll.lat,ll.lng);
+    });
     mk.bindTooltip('<div style="font-size:11px;line-height:1.5"><b>Orden asignada '+o.nro+'</b>'+(o.tipo?' \u00b7 '+o.tipo:'')+'<br>'+(o.nombre?o.nombre+'<br>':'')+(o.dir?o.dir+'<br>':'')+
-      'Planilla: '+({F:'Finalizada',C:'Cancelada',P:'Pendiente'}[o.estado]||'sin estado')+' \u00b7 '+o.fec+'<br>'+textoVis(o,true)+comentHTML(o)+(o.fuente==='parada'?'<br><i>Ubicaci\u00f3n tomada de la parada</i>':o.fuente==='gps'?'<br><i>Ubicaci\u00f3n corregida con el GPS</i>':'')+'</div>',{direction:'top',offset:[0,-sz/2-2]});
+      'Planilla: '+({F:'Finalizada',C:'Cancelada',P:'Pendiente'}[o.estado]||'sin estado')+' \u00b7 '+o.fec+'<br>'+textoVis(o,true)+comentHTML(o)+(o.fuente==='parada'?'<br><i>Ubicaci\u00f3n tomada de la parada</i>':o.fuente==='gps'?'<br><i>Ubicaci\u00f3n corregida con el GPS</i>':o.fuente==='manual'?'<br><i>Ubicaci\u00f3n corregida a mano</i>':'')+(SUPERVISOR_MODE?'':'<br><span style=\"color:#9c9890\">Arrastralo para corregir la ubicaci\u00f3n</span>')+'</div>',{direction:'top',offset:[0,-sz/2-2]});
     bds.push([o.lat,o.lon]);
     if(sel)foco=[mk,o];
   });
   if(foco){setTimeout(function(){try{LM2.setView([foco[1].lat,foco[1].lon],17);foco[0].openTooltip();}catch(e){}},30);}
+}
+
+/* Nueva ubicación de un cliente: se guarda como manual (gana sobre SIGA/NAP), se deshacen las
+   asignaciones automáticas que se habían hecho con la ubicación mala y se vuelve a cruzar todo */
+function corregirUbicacionCliente(nro,lat,lon){
+  var prev=CLI_COORDS[nro]||{};
+  CLI_COORDS[nro]=Object.assign({},prev,{lat:lat,lon:lon,fuente:'manual',antes:prev.lat?[prev.lat,prev.lon]:null});
+  delete CLI_COORDS[nro].sinNap;
+  guardarCliCoords();
+  DATA.forEach(function(m){
+    m.paradas.forEach(function(p){
+      if(!p.cliAuto||normCli(p.cli)!==nro)return;
+      p.cli='';p.cliAuto=false;
+      if(p.trabAuto){p.trab='';p.trabAuto=false;}
+      if(p.confAuto){p.conf='';p.confAuto=false;}
+      p.comentario='';
+    });
+    (m.ordenes||[]).forEach(function(o){if(o.nro===nro){o.lat=lat;o.lon=lon;o.fuente='manual';}});
+  });
+  var n=finImportOrdenes();
+  toast('\u2713 Ubicaci\u00f3n del cliente '+nro+' corregida'+(n?' \u2014 se asign\u00f3 a la parada que est\u00e1 en esa puerta':''));
+}
+function modoCorregirUbic(fec,nro){
+  if(aD!==fec)selDia(fec);
+  ORD_SEL={fec:fec,nro:nro};
+  var m=DATA[aM];rMapa(m,MAPA_FILTRO_ACTUAL);renderPlayerControls(m);
+  var el=document.getElementById('mmap');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'});
+  toast('Arrastr\u00e1 el cuadradito amarillo del cliente '+nro+' hasta su casa real (o hasta la parada donde estuvo el m\u00f3vil)');
 }
 
 /* --- Importación --- */
@@ -3613,6 +3666,7 @@ function planCfgAForm(){
   document.getElementById('plan-url').value=PLAN_CFG.url||'';
   document.getElementById('plan-clave').value=PLAN_CFG.clave||'';
   document.getElementById('plan-links').value=(PLAN_CFG.links||[]).join('\n');
+  document.getElementById('plan-clientes').value=PLAN_CFG.clientes||'';
 }
 function rangoReporte(){
   var a=null,b=null;
@@ -3624,6 +3678,7 @@ async function traerDePlanilla(){
   PLAN_CFG.url=document.getElementById('plan-url').value.trim();
   PLAN_CFG.clave=document.getElementById('plan-clave').value.trim();
   PLAN_CFG.links=document.getElementById('plan-links').value.split('\n').map(function(s){return s.trim();}).filter(String);
+  PLAN_CFG.clientes=document.getElementById('plan-clientes').value.trim();
   guardarPlanCfg();
   if(!DATA.length){ordLog('<span style="color:var(--wn)">Primero carg\u00e1 el reporte (Excel del GPS): las \u00f3rdenes se traen para esos m\u00f3viles y fechas.</span>');return;}
   if(!/^https:\/\/script\.google\.com\//.test(PLAN_CFG.url)){ordLog('<span style="color:var(--dn)">Peg\u00e1 la URL del lector: la que termina en /exec.</span>');return;}
@@ -3632,7 +3687,9 @@ async function traerDePlanilla(){
   var r=rangoReporte();
   ordLog('&#8987; Leyendo la planilla del '+r.desde.split('-').reverse().join('/')+' al '+r.hasta.split('-').reverse().join('/')+'... (puede tardar unos segundos)');
   try{
-    var res=await fetch(PLAN_CFG.url+'?'+new URLSearchParams({clave:PLAN_CFG.clave,accion:'leer',ids:ids.join(','),desde:r.desde,hasta:r.hasta}));
+    var prm={clave:PLAN_CFG.clave,accion:'leer',ids:ids.join(','),desde:r.desde,hasta:r.hasta};
+    if(idDeLink(PLAN_CFG.clientes))prm.clientes=idDeLink(PLAN_CFG.clientes);
+    var res=await fetch(PLAN_CFG.url+'?'+new URLSearchParams(prm));
     var j=await res.json();
     if(!j.ok){ordLog('<span style="color:var(--dn)">El lector respondi\u00f3: '+escH(j.error||'error')+'</span>');return;}
     ULTIMA_PLAN=j;
@@ -3646,7 +3703,7 @@ async function traerDePlanilla(){
 function aplicarPlanilla(j,conLog){
   var prevManual={};
   DATA.forEach(function(m){(m.ordenes||[]).forEach(function(o){if(o.claseManual)prevManual[m.label+'|'+o.fec+'|'+o.nro]=o.claseManual;});});
-  var pares={},pend=[],st={dias:0,ordenes:0,coment:0,otros:{}};
+  var pares={},pend=[],st={dias:0,ordenes:0,coment:0,otros:{}},nuevasUbic=0;
   j.dias.forEach(function(d){
     var m=null,key=d.torre+'|'+d.fecha+'|'+d.col;
     if(d.movilNum!=null)m=movilPorNumero(d.movilNum,d.emp);
@@ -3669,6 +3726,7 @@ function aplicarPlanilla(j,conLog){
     if(di.torres.indexOf(tn)<0)di.torres.push(tn);
     [['tarea',d.tarea],['observacion',d.observacion],['novedades',d.novedades],['tecnicos',d.tecnicos]].forEach(function(x){if(x[1]&&di[x[0]].indexOf(x[1])<0)di[x[0]].push(x[1]);});
     d.ordenes.forEach(function(x){
+      if(x.lat&&x.lon){var cc=CLI_COORDS[x.nro];if(!cc||!cc.lat){CLI_COORDS[x.nro]={lat:x.lat,lon:x.lon,nombre:x.nombre||'',dir:x.dir||'',fuente:'nap'};nuevasUbic++;}}
       if(m.ordenes.some(function(o){return o.nro===x.nro&&o.fec===fec;}))return;
       var com=(x.comentarios||[]);
       m.ordenes.push({nro:x.nro,fec:fec,tipo:d.tarea,estado:x.estado,torre:tn,coment:com,
@@ -3688,10 +3746,13 @@ function aplicarPlanilla(j,conLog){
     if(ob.length&&(!m.dedicado||m.dedicadoPlanilla)){m.dedicado=ob.join(' / ');m.dedicadoPlanilla=true;}
   });
   ULTIMO_PEND=pend;
+  if(nuevasUbic)guardarCliCoords();
   var n=finImportOrdenes();
   if(!conLog)return;
   var otros=Object.keys(st.otros);
   ordLog('<span style="color:var(--ok)">\u2713 '+st.ordenes+' \u00f3rdenes de '+st.dias+' m\u00f3vil/d\u00eda \u00b7 '+st.coment+' comentarios'+(j.comentariosSinUbicar?' ('+j.comentariosSinUbicar+' de clientes que no est\u00e1n en la planilla)':'')+'.</span>'+
+    (j.baseClientes?'<br>\ud83d\udccd Base de clientes: '+j.baseClientes.ordenesConUbicacion+' de '+st.ordenes+' \u00f3rdenes con ubicaci\u00f3n ('+escH(j.baseClientes.nombre)+', '+j.baseClientes.clientes+' clientes).':
+      (PLAN_CFG.clientes?'':'<br><span style="color:var(--wn)">Tip: peg\u00e1 el link de tu base de clientes (NAP) arriba y las \u00f3rdenes llegan con su ubicaci\u00f3n.</span>'))+
     (n?'<br>'+n+' parada(s) sin cliente quedaron asignadas por cercan\u00eda.':'')+
     (otros.length?'<br><span style="color:var(--tx3)">M\u00f3viles de la planilla que no est\u00e1n en este reporte: '+escH(otros.join(', '))+'</span>':'')+
     htmlSinMovil());
