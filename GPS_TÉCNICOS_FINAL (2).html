@@ -269,6 +269,7 @@ tbody tr:last-child td{border-bottom:none}
       <button class="bo" id="btn-gh-config" onclick="openGhConfigModal()">&#9881;&#65039; GitHub</button>
       <button class="bo" id="btn-nap-config" onclick="openNapConfigModal()">&#128273; NAP</button>
       <button class="bo" id="btn-historial" onclick="openHistorial()">&#128197; Historial</button>
+      <button class="bo" id="btn-vista-sup" onclick="vistaSupervisor()" title="Abre una pesta&#241;a nueva mostrando el reporte exactamente como lo va a ver el supervisor, sin publicarlo">&#128065; Vista supervisor</button>
       <button class="bo" id="btn-guardar-hist" onclick="exportToHistorial()">&#128228; Guardar en historial</button>
       <button class="bg" id="btn-guardar-sesion" onclick="guardarSesion()">&#128190; Guardar sesión</button>
       <span id="borrador-msg" style="font-size:11px;color:var(--tx3);opacity:.55;align-self:center;margin-left:2px;transition:opacity .3s"></span>
@@ -983,6 +984,7 @@ async function addTecnico(){
 /* === CALCULAR ALERTAS === */
 function calcAl(){
   autoMarcarEstaciones();
+  agruparParadasCliente();
   DATA.forEach(function(m){
     var tokDef=m.tecs.filter(function(t){return t.lat&&t.lon});
     m.paradas.forEach(function(p){
@@ -1030,15 +1032,17 @@ function calcAl(){
       if(arr.length>1)arr.forEach(function(p,i){p.cliRep={n:i+1,tot:arr.length,cli:p.cli.trim()}});
     });
     // Cliente repetido en toda la semana (sin importar el día) — para pintarlo igual en el mapa
-    var grpCliSemana={};
-    m.paradas.forEach(function(p){
-      if(p.isP)return;
+    var grpCliSemana={},visitas={},prevCli=null,prevFec=null;
+    m.paradas.slice().sort(cmpParadas).forEach(function(p){
+      if(p.isP){prevCli=null;return;}
       var c=(p.cli||'').trim().toUpperCase();
-      if(!c||c==='-')return;
+      if(!c||c==='-'){prevCli=null;prevFec=p.fec;return;}
       (grpCliSemana[c]=grpCliSemana[c]||[]).push(p);
+      if(!(prevCli===c&&prevFec===p.fec))visitas[c]=(visitas[c]||0)+1; // paradas pegadas = una visita
+      prevCli=c;prevFec=p.fec;
     });
     Object.keys(grpCliSemana).forEach(function(c){
-      if(grpCliSemana[c].length>1)grpCliSemana[c].forEach(function(p){p.cliRepSemana=c;});
+      if(visitas[c]>1)grpCliSemana[c].forEach(function(p){p.cliRepSemana=c;});
     });
   });
 }
@@ -1825,7 +1829,7 @@ function updTbl(m){
       (function(){var dx=typeof p.distGps==='number'&&Math.abs(p.distGps-(p.dist||0))>=0.3;
         return '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap"'+(dx?' title="Medido sobre el trazado GPS. El Excel dec\u00eda '+(p.dist||0)+' km"':'')+'>'+kmParada(p)+' km'+(dx?' <span style="color:var(--tx3);font-size:10px">&#128752;</span>':'')+'</td>';})()+
       '<td>'+db2+'</td>'+
-      (m.hC?'<td style="font-family:var(--fm);font-size:11px">'+cliDot+p.cli+(p.cliAuto?' <span class="bd bdn2" title="Asignado autom\u00e1ticamente: la parada est\u00e1 en la puerta de esta orden de la planilla">auto</span>':'')+'</td>':'')+
+      (m.hC?'<td style="font-family:var(--fm);font-size:11px">'+cliDot+p.cli+(p.cliAuto?' <span class="bd bdn2" title="'+(p.cliGrupo?'Misma visita: parada pegada a la anterior o siguiente, en el mismo lugar':'Asignado autom\u00e1ticamente: la parada est\u00e1 en la puerta de esta orden de la planilla')+'">'+(p.cliGrupo?'misma visita':'auto')+'</span>':'')+'</td>':'')+
       (m.hT?'<td>'+tb2+'</td>':'')+
       '<td style="font-family:var(--fm);font-size:11px;white-space:nowrap">'+(p.instMin>0?fD(p.instMin):'\u2014')+'</td>'+
       '<td>'+ob+(p.comentario?' <span title="'+escA(p.comentario)+'" style="cursor:help">&#128172;</span>':'')+' '+(SUPERVISOR_MODE?'':editBtn+(p.manual?'<button onclick="event.stopPropagation();eliminarParadaManual('+pidx+')" title="Quitar esta parada agregada a mano" style="border:none;background:none;cursor:pointer;font-size:12px;opacity:.5;padding:0 2px">&#128465;&#65039;</button>':''))+'</td></tr>';
@@ -1873,7 +1877,10 @@ function closeParadaEditModal(){document.getElementById('paradaEditModal').class
 function guardarEdicionParada(){
   if(!PE_ACTUAL)return;
   var p=PE_ACTUAL.p;
+  var cliAntes=(p.cli||'').trim();
   p.cli=document.getElementById('pe-cliente').value.trim();
+  if(!p.cli&&cliAntes&&p.cliGrupo)p.sinGrupo=true;
+  if(p.cli!==cliAntes){p.cliGrupo=false;p.cliAuto=false;}
   p.trab=document.getElementById('pe-trabajo').value;
   p.conf=document.getElementById('pe-conf').value;
   p.confAuto=false;
@@ -3275,6 +3282,34 @@ function aprenderEstacion(p){
   ESTACIONES.propias.push([p.lat,p.lon,'Marcada a mano']);guardarEstaciones();
 }
 
+/* --- Paradas contiguas en el mismo lugar = misma visita: si una tiene cliente, las de al lado
+       (antes o después, sin otra parada en el medio y a menos de 80 m) se completan con el mismo
+       cliente, trabajo y conformidad. Solo completa lo vacío; si le borrás el cliente a mano, no insiste. --- */
+var RADIO_GRUPO=80,RE_NO_GRUPO=/estaci|ypf|shell|axion|puma|gulf|proa/i;
+function agruparParadasCliente(){
+  if(SUPERVISOR_MODE)return 0;
+  var n=0;
+  DATA.forEach(function(m){
+    diasMovil(m).forEach(function(d){
+      var ps=m.paradas.filter(function(p){return p.fec===d;}).sort(cmpParadas);
+      [ps,ps.slice().reverse()].forEach(function(seq){
+        var ref=null;
+        seq.forEach(function(b){
+          var cb=(b.cli||'').trim();
+          if(cb&&cb!=='-'&&!esBase(b)){if(!b.cliGrupo)ref=b;return;}
+          if(!ref||esBase(b)||b.isPn||b.sinGrupo||cb||RE_NO_GRUPO.test(b.conf||'')||!b.lat||!b.lon||!ref.lat||hav(ref.lat,ref.lon,b.lat,b.lon)>RADIO_GRUPO){ref=null;return;}
+          b.cli=ref.cli.trim();b.cliAuto=true;b.cliGrupo=true;
+          if(!b.trab&&ref.trab){b.trab=ref.trab;b.trabAuto=true;}
+          if(!b.conf&&ref.conf){b.conf=ref.conf;b.confAuto=true;}
+          if(ref.comentario&&!b.comentario)b.comentario=ref.comentario;
+          n++;
+        });
+      });
+    });
+  });
+  return n;
+}
+
 /* --- Trabajo realizado según la planilla: F = SÍ, P/C = NO (solo si está vacío) --- */
 function completarDesdePlanilla(){
   DATA.forEach(function(m){
@@ -3826,11 +3861,41 @@ function ld(v,t){document.getElementById('ld').style.display=v?'flex':'none';if(
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(function(){t.classList.remove('on')},3500);}
 function resetDash(){dCharts();DATA=[];aM=0;aD='todos';document.getElementById('dash').style.display='none';document.getElementById('up').style.display='flex';document.getElementById('fi').value='';}
 
+/* === VISTA PREVIA DEL SUPERVISOR: lo mismo que se publicaría, en otra pestaña y sin publicar === */
+var PREVIA_KEY='ctc_vista_previa';
+async function vistaSupervisor(){
+  if(!DATA.length){toast('Primero carg\u00e1 un reporte');return;}
+  var ventana=window.open('about:blank','_blank'); // se abre ya, para que el navegador no la bloquee
+  ld(true,'Preparando la vista del supervisor...');
+  await esperarDesvios(60000);
+  var payload={data:DATA,gas:GAS,gc:GC,rutas:empaquetarRutas(),creado:new Date().toISOString()};
+  try{localStorage.setItem(PREVIA_KEY,JSON.stringify(payload));}
+  catch(e){try{payload.gc={};localStorage.setItem(PREVIA_KEY,JSON.stringify(payload));}catch(e2){ld(false);if(ventana)ventana.close();alert('El reporte es muy grande para la vista previa. Public\u00e1lo y abrilo con el link de supervisor.');return;}}
+  ld(false);
+  var url=location.pathname+'?modo=supervisor&vista=previa';
+  if(ventana)ventana.location.href=url;else window.open(url,'_blank');
+}
+async function abrirVistaPrevia(){
+  var j=null;try{j=JSON.parse(localStorage.getItem(PREVIA_KEY)||'null');}catch(e){}
+  if(!j||!j.data){openHistorial();return;}
+  DATA=j.data;GAS=j.gas||[];if(j.gc)Object.assign(GC,j.gc);
+  RUTAS_REPORTE=j.rutas?desempaquetarRutas(j.rutas):{};
+  aD='todos';aM=0;
+  ld(true,'Abriendo vista previa...');
+  calcAl();
+  try{await cargarClima();}catch(e){}
+  render();ld(false);
+  var b=document.createElement('div');
+  b.style.cssText='position:sticky;top:0;z-index:9000;background:#7c3aed;color:#fff;font-size:13px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px';
+  b.innerHTML='<span>&#128065; <b>Vista previa</b> \u2014 as\u00ed lo va a ver el supervisor. Todav\u00eda no est\u00e1 publicado.</span><button style="border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;border-radius:6px;padding:3px 10px;cursor:pointer" onclick="window.close()">Cerrar</button>';
+  document.body.insertBefore(b,document.body.firstChild);
+}
+
 /* === AUTO-RENDER si es archivo exportado === */
 /*__PRELOAD__*/
 window.addEventListener('load',async function(){
   if(SUPERVISOR_MODE){
-    ['btn-tecnico','btn-importar-cruce','btn-ordenes','btn-importar-rutas','btn-exportar-excel','btn-gh-config','btn-nap-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
+    ['btn-vista-sup','btn-tecnico','btn-importar-cruce','btn-ordenes','btn-importar-rutas','btn-exportar-excel','btn-gh-config','btn-nap-config','btn-guardar-hist','btn-guardar-sesion','btn-cargar-otro'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     var buscarOtro=document.getElementById('btn-buscar-otro');if(buscarOtro)buscarOtro.style.display='';
@@ -3851,6 +3916,8 @@ window.addEventListener('load',async function(){
     render();
     await cargarClima();
     renderPlayerControls(DATA[aM]);
+  }else if(SUPERVISOR_MODE&&new URLSearchParams(location.search).get('vista')==='previa'){
+    abrirVistaPrevia();
   }else if(SUPERVISOR_MODE){
     openHistorial();
   }
