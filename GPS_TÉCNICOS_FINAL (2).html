@@ -2220,7 +2220,12 @@ function loadHistReport(path){
     document.getElementById('hist').style.display='none';
     render();
     ld(false);
-  }).catch(function(){ld(false);alert('No se pudo abrir ese reporte. Puede que el archivo ya no exista en la carpeta reportes/.');});
+  }).catch(function(err){
+    console.error('Error al abrir reporte',path,err);
+    ld(false);
+    if(err&&err.message==='404')alert('No se pudo abrir ese reporte. Puede que el archivo ya no exista en la carpeta reportes/.');
+    else alert('El reporte existe pero hubo un error al mostrarlo:\n'+(err&&err.message||err)+'\n\nPasale este mensaje a Fabri.');
+  });
 }
 async function exportToHistorial(){
   if(!DATA.length){alert('Primero carg\u00e1 un reporte.');return;}
@@ -2311,6 +2316,10 @@ function desempaquetarRutas(pk){
     out[mov]={};
     Object.keys(pk[mov]).forEach(function(d){
       var x=pk[mov][d];
+      if(!x)return;
+      // Formato viejo (reportes publicados antes de la compresión): ya viene como [[lat,lng,iso],...]
+      if(Array.isArray(x)){out[mov][d]=x;return;}
+      if(!Array.isArray(x.p))return;
       out[mov][d]=x.p.map(function(q){var a=[q[0]/1e5,q[1]/1e5];if(x.t0!=null&&q[2]!=null)a.push(new Date(x.t0+q[2]*1000).toISOString());return a;});
     });
   });
