@@ -128,10 +128,10 @@ tbody tr:last-child td{border-bottom:none}
 .bdm{background:#fdf4ff;color:var(--dm)}.bdg{background:#fff7ed;color:var(--gs)}.bdgm{background:#fee2e2;color:var(--dn)}
 .bdcr{background:#fce7f3;color:var(--cr)}
 .kpi-v.cr{color:var(--cr)}
-#ld{position:fixed;inset:0;background:rgba(244,243,239,.93);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
+#ld{position:fixed;inset:0;background:rgba(244,243,239,.93);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:2000;gap:12px}
 .sp{width:28px;height:28px;border:2.5px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}.lt{font-size:13px;color:var(--tx2)}
-#toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--tx);color:#fff;padding:.7rem 1.1rem;border-radius:var(--rs);font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
+#toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--tx);color:#fff;padding:.7rem 1.1rem;border-radius:var(--rs);font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:2000}
 #toast.on{opacity:1}
 
 .obs-box{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:1rem 1.1rem;margin-bottom:1.25rem}
@@ -148,7 +148,7 @@ tbody tr:last-child td{border-bottom:none}
 .theme-dot[data-t="dark"]{background:#1e1c25}
 .theme-dot[data-t="sepia"]{background:#f3ecd9}
 
-.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:900;padding:1rem}
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:1500;padding:1rem}
 .modal-ov.on{display:flex}
 .modal-bx{background:var(--sf);border-radius:var(--r);padding:1.5rem;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35)}
 .modal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
@@ -3735,11 +3735,23 @@ async function traerDePlanilla(){
     if(idDeLink(PLAN_CFG.clientes))prm.clientes=idDeLink(PLAN_CFG.clientes);
     var res=await fetch(PLAN_CFG.url+'?'+new URLSearchParams(prm));
     var j=await res.json();
-    if(!j.ok){ordLog('<span style="color:var(--dn)">El lector respondi\u00f3: '+escH(j.error||'error')+'</span>');return;}
+  }catch(e){
+    ordLog('<span style="color:var(--dn)">No se pudo conectar con el lector ('+escH(e.message)+'). Revis\u00e1 la URL y que est\u00e9 implementado como aplicaci\u00f3n web con acceso "Cualquier usuario".</span>');
+    return;
+  }
+  if(!j||!j.ok){ordLog('<span style="color:var(--dn)">El lector respondi\u00f3: '+escH((j&&j.error)||'error')+'</span>');return;}
+  if(!Array.isArray(j.dias)){
+    console.warn('Respuesta del lector sin "dias":',j);
+    ordLog('<span style="color:var(--dn)">El lector respondi\u00f3, pero no trajo los d\u00edas de la planilla. Puede que est\u00e9 implementada una versi\u00f3n vieja del script: en Apps Script, Implementar \u2192 Gestionar implementaciones \u2192 l\u00e1piz \u2192 Nueva versi\u00f3n.<br><span style="color:var(--tx3);font-family:var(--fm);font-size:11px">Respuesta: '+escH(JSON.stringify(j).slice(0,200))+'</span></span>');
+    return;
+  }
+  try{
     ULTIMA_PLAN=j;
     aplicarPlanilla(j,true);
   }catch(e){
-    ordLog('<span style="color:var(--dn)">No se pudo conectar con el lector ('+escH(e.message)+'). Revis\u00e1 la URL y que est\u00e9 implementado como aplicaci\u00f3n web con acceso "Cualquier usuario".</span>');
+    console.error('Error al volcar la planilla al reporte',e,j);
+    var donde=(String(e.stack||'').split('\n')[1]||'').trim();
+    ordLog('<span style="color:var(--dn)">La planilla se ley\u00f3 bien, pero fall\u00f3 al volcarla al reporte: '+escH(e.message)+'<br><span style="color:var(--tx3);font-family:var(--fm);font-size:11px">'+escH(donde)+'</span><br>Mandale esto a Claude.</span>');
   }
 }
 
@@ -3748,7 +3760,7 @@ function aplicarPlanilla(j,conLog){
   var prevManual={};
   DATA.forEach(function(m){(m.ordenes||[]).forEach(function(o){if(o.claseManual)prevManual[m.label+'|'+o.fec+'|'+o.nro]=o.claseManual;});});
   var pares={},pend=[],st={dias:0,ordenes:0,coment:0,otros:{}},nuevasUbic=0;
-  j.dias.forEach(function(d){
+  (j.dias||[]).forEach(function(d){
     var m=null,key=d.torre+'|'+d.fecha+'|'+d.col;
     if(d.movilNum!=null)m=movilPorNumero(d.movilNum,d.emp);
     else{
@@ -3769,7 +3781,7 @@ function aplicarPlanilla(j,conLog){
     var di=m.diaInfo[fec],tn=torreNombre(d.torre);
     if(di.torres.indexOf(tn)<0)di.torres.push(tn);
     [['tarea',d.tarea],['observacion',d.observacion],['novedades',d.novedades],['tecnicos',d.tecnicos]].forEach(function(x){if(x[1]&&di[x[0]].indexOf(x[1])<0)di[x[0]].push(x[1]);});
-    d.ordenes.forEach(function(x){
+    (d.ordenes||[]).forEach(function(x){
       if(x.lat&&x.lon){var cc=CLI_COORDS[x.nro];if(!cc||!cc.lat){CLI_COORDS[x.nro]={lat:x.lat,lon:x.lon,nombre:x.nombre||'',dir:x.dir||'',fuente:'nap'};nuevasUbic++;}}
       if(m.ordenes.some(function(o){return o.nro===x.nro&&o.fec===fec;}))return;
       var com=(x.comentarios||[]);
@@ -3784,7 +3796,7 @@ function aplicarPlanilla(j,conLog){
   DATA.forEach(function(m){
     if(!m.diaInfo)return;
     var ts={},obs={};
-    Object.keys(m.diaInfo).forEach(function(f){m.diaInfo[f].torres.forEach(function(t){ts[t]=1;});m.diaInfo[f].observacion.forEach(function(o){obs[o]=(obs[o]||0)+1;});});
+    Object.keys(m.diaInfo).forEach(function(f){var di=m.diaInfo[f]||{};(di.torres||[]).forEach(function(t){ts[t]=1;});(di.observacion||[]).forEach(function(o){obs[o]=(obs[o]||0)+1;});});
     var tl=Object.keys(ts);if(tl.length)m.torre=tl.join(' / ');
     var ob=Object.keys(obs).sort(function(a,b){return obs[b]-obs[a];});
     if(ob.length&&(!m.dedicado||m.dedicadoPlanilla)){m.dedicado=ob.join(' / ');m.dedicadoPlanilla=true;}
@@ -3822,7 +3834,7 @@ function aplicarConfComentarios(){
   DATA.forEach(function(m){(m.ordenes||[]).forEach(function(o){
     if(!o.coment||!o.coment.length)return;
     var txt=textoComent(o),cl=claseOrden(o);
-    m.paradas.forEach(function(p){
+    (m.paradas||[]).forEach(function(p){
       if(p.fec!==o.fec||normCli(p.cli)!==o.nro)return;
       p.comentario=txt;
       var conf='';
